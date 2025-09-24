@@ -1,3 +1,4 @@
+import { generateKey } from 'crypto';
 import mongoose, { Schema, Document } from 'mongoose';
 
 interface ITask {
@@ -22,7 +23,7 @@ export interface IGame extends Document {
 }
 
 const GameSchema: Schema = new Schema({
-    gameId: { type: String, required: true, unique: true },
+    gameId: { type: String, unique: true, generateKey: true },
     players: { type: [{ playerId: String, name: String, role: String, status: String }], default: [] },
     tasks: { type: [{ taskId: String, description: String, assignedTo: String, status: String }], default: [] },
     gameStatus: { type: String, required: true, enum: ['waiting', 'in-progress', 'ended'], default: 'waiting' }

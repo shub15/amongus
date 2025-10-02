@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import Player from "../models/Player";
 
 declare global {
   namespace Express {
@@ -27,5 +28,40 @@ export const authenticateToken = (
 };
 
 export const generateToken = (user: any) => {
-  return jwt.sign(user, secretKey, { expiresIn: "1h" });
+  return jwt.sign(user, secretKey, { expiresIn: "24h" });
+};
+
+// Middleware to check if user is an admin
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user || !req.user.role || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Access denied. Admins only." });
+  }
+  next();
+};
+
+// Middleware to check if user is in a game
+export const isInGame = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { gameId } = req.params;
+    const { playerId } = req.user;
+
+    if (!gameId || !playerId) {
+      return res
+        .status(400)
+        .json({ message: "Game ID and Player ID are required" });
+    }
+
+    const player = await Player.findOne({ playerId, "games.gameId": gameId });
+    if (!player) {
+      return res.status(403).json({ message: "Player is not in this game" });
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({ message: "Error verifying game membership", error });
+  }
 };

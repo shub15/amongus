@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #0f172a;
+    color: #f8fafc;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+        monospace;
+}
+
+/* Among Us inspired colors */
+.amongus-red {
+    background-color: #ff4b4b;
+}
+
+.amongus-blue {
+    background-color: #4b70ff;
+}
+
+.amongus-green {
+    background-color: #4bff81;
+}
+
+.amongus-yellow {
+    background-color: #ffff4b;
+}
+
+.amongus-purple {
+    background-color: #c24bff;
+}
+
+.amongus-orange {
+    background-color: #ff994b;
+}

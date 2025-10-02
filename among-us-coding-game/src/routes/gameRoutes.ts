@@ -1,13 +1,73 @@
-import { Router } from 'express';
-import GameController from '../controllers/gameController';
+import { Router } from "express";
+import GameController from "../controllers/gameController";
+import { Application } from "express";
+import { authenticateToken, isAdmin } from "../middleware/auth";
+import {
+  validateGameCreation,
+  validateSabotage,
+  validateVoting,
+  validateGameId,
+} from "../middleware/validation";
 
 const router = Router();
+// Create an instance of the GameController class
 const gameController = new GameController();
 
-export function setGameRoutes(app: Router) {
-    app.use('/api/games', router);
+export const setGameRoutes = (app: Application): void => {
+  app.use("/api/games", router);
 
-    router.post('/', gameController.createGame.bind(gameController));
-    router.post('/:gameId/join', gameController.joinGame.bind(gameController));
-    router.delete('/:gameId', gameController.endGame.bind(gameController));
-}
+  // Public routes
+  router.post("/", validateGameCreation, gameController.createGame);
+
+  // Protected routes
+  router.get(
+    "/:gameId",
+    validateGameId,
+    authenticateToken,
+    gameController.getGame
+  );
+  router.post(
+    "/:gameId/join",
+    validateGameId,
+    authenticateToken,
+    gameController.joinGame
+  );
+  router.post(
+    "/:gameId/start",
+    validateGameId,
+    authenticateToken,
+    gameController.startGame
+  );
+  router.post(
+    "/:gameId/submit-task",
+    validateGameId,
+    authenticateToken,
+    gameController.submitTask
+  );
+  router.post(
+    "/:gameId/call-meeting",
+    validateGameId,
+    authenticateToken,
+    gameController.callMeeting
+  );
+  router.post(
+    "/:gameId/vote",
+    validateGameId,
+    authenticateToken,
+    validateVoting,
+    gameController.vote
+  );
+  router.post(
+    "/:gameId/sabotage",
+    validateGameId,
+    authenticateToken,
+    validateSabotage,
+    gameController.sabotage
+  );
+  router.post(
+    "/:gameId/end",
+    validateGameId,
+    authenticateToken,
+    gameController.endGame
+  );
+};

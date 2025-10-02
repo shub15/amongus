@@ -1,5 +1,5 @@
 import { TaskModel } from "../models/Task";
-import type { Task } from "../models/Task";
+import type { ITask as Task } from "../models/Task";
 import { Player } from "../types";
 
 export class TaskService {

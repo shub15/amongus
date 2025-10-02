@@ -7,8 +7,7 @@ import dotenv from "dotenv";
 import { setGameRoutes } from "./routes/gameRoutes";
 import { setPlayerRoutes } from "./routes/playerRoutes";
 import { setTaskRoutes } from "./routes/taskRoutes";
-import initializeSocketService from "./services/socketService";
-import databaseConfig from "./config/database";
+import SocketService from "./services/socketService";
 import connectDB from "./config/database";
 
 // Load environment variables
@@ -16,23 +15,32 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true,
-  })
-);
+// Optimize HTTP server settings
+server.keepAliveTimeout = 65000; // Ensure keep alive timeout is greater than load balancer timeout
+server.headersTimeout = 66000; // Ensure headers timeout is greater than keep alive timeout
+
+// CORS configuration for REST API
+const corsOptions = {
+  origin: process.env.CLIENT_URL || [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200,
+  maxAge: 86400, // Cache preflight requests for 24 hours
+};
+
+// Middleware with optimized settings
+app.use(express.json({ limit: "5mb" })); // Reduced limit
+app.use(express.urlencoded({ extended: true, limit: "5mb" })); // Reduced limit
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options("*", cors(corsOptions));
 
 // Health check route
 app.get("/health", (req, res) => {
@@ -43,7 +51,7 @@ app.get("/health", (req, res) => {
 connectDB();
 
 // WebSocket setup
-new initializeSocketService(io);
+const socketService = new SocketService(server);
 
 // Routes
 setGameRoutes(app);
@@ -84,4 +92,4 @@ server.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });
 
-export { io };
+export { server, socketService };

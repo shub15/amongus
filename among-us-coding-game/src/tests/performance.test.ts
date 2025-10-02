@@ -1,5 +1,5 @@
 import request from "supertest";
-import { createTestApp } from "../utils/testHelpers";
+import { createTestApp } from "./utils/testHelpers";
 
 describe("Performance Tests", () => {
   const app = createTestApp();

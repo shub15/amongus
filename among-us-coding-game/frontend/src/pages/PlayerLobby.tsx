@@ -65,7 +65,8 @@ const PlayerLobby = () => {
       });
     };
 
-    const handleGameStarted = () => {
+    const handleGameStarted = (data: any) => {
+      console.log("Game started with data:", data);
       navigate(`/game/${gameId}`);
     };
 

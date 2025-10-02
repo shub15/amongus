@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { playerAPI, gameAPI } from "../services/api";
 
 const AdminDashboard = () => {

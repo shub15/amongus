@@ -110,6 +110,9 @@ class SocketService {
             // Join the game room
             socket.join(gameId);
 
+            // Also join the player's individual room for personalized events
+            socket.join(playerId);
+
             // Update player's online status
             const updatedPlayer = await Player.findOneAndUpdate(
               { playerId },
@@ -151,6 +154,9 @@ class SocketService {
 
             // Leave the game room
             socket.leave(gameId);
+
+            // Also leave the player's individual room
+            socket.leave(playerId);
 
             // Update player's online status
             const updatedPlayer = await Player.findOneAndUpdate(

@@ -32,6 +32,9 @@ export interface Game {
   gameStatus: "waiting" | "in-progress" | "discussion" | "voting" | "ended";
   imposterCount: number;
   currentSabotage: string | null;
+  sabotageTaskId: string | null;
+  sabotageStartTime: Date | null;
+  sabotageDeadline: Date | null;
   votes: Map<string, string>;
   voteHistory: Array<{ round: number; votes: Map<string, string> }>;
   deadPlayers: string[];

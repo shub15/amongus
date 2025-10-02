@@ -29,6 +29,9 @@ export interface IGame extends Document {
   gameStatus: "waiting" | "in-progress" | "discussion" | "voting" | "ended";
   imposterCount: number;
   currentSabotage: string | null; // Current sabotage type if any
+  sabotageTaskId: string | null; // ID of the current sabotage task
+  sabotageStartTime: Date | null; // When the sabotage started
+  sabotageDeadline: Date | null; // When the sabotage must be completed by
   votes: Map<string, string>; // Map of voterId -> votedPlayerId
   voteHistory: Array<{ round: number; votes: Map<string, string> }>;
   deadPlayers: string[]; // Array of dead player IDs
@@ -80,6 +83,9 @@ const GameSchema: Schema = new Schema({
   },
   imposterCount: { type: Number, default: 1 },
   currentSabotage: { type: String, default: null },
+  sabotageTaskId: { type: String, default: null },
+  sabotageStartTime: { type: Date, default: null },
+  sabotageDeadline: { type: Date, default: null },
   votes: { type: Map, of: String, default: {} },
   voteHistory: {
     type: [

@@ -51,6 +51,57 @@ const TECHNICAL_QUESTIONS = [
   },
 ];
 
+// Sabotage tasks database
+const SABOTAGE_TASKS = [
+  {
+    description: "Fix Reactor Meltdown",
+    question: "What is the correct way to handle state updates in React?",
+    options: [
+      "Directly mutate state",
+      "Use setState or useState hook",
+      "Use props to update state",
+      "Use refs for all state changes",
+    ],
+    answer: "Use setState or useState hook",
+    category: "React",
+    difficulty: "medium",
+    sabotageType: "reactor",
+  },
+  {
+    description: "Restore Oxygen Supply",
+    question: "Which HTTP status code indicates 'OK'?",
+    options: ["200", "404", "500", "301"],
+    answer: "200",
+    category: "HTTP",
+    difficulty: "easy",
+    sabotageType: "oxygen",
+  },
+  {
+    description: "Fix Lights",
+    question: "What is the purpose of CSS flexbox?",
+    options: [
+      "To create grid layouts",
+      "To handle responsive images",
+      "To create flexible layouts",
+      "To style text elements",
+    ],
+    answer: "To create flexible layouts",
+    category: "CSS",
+    difficulty: "medium",
+    sabotageType: "lights",
+  },
+  {
+    description: "Repair Communications",
+    question:
+      "Which method is used to add an element to the end of an array in JavaScript?",
+    options: ["push()", "pop()", "shift()", "unshift()"],
+    answer: "push()",
+    category: "JavaScript",
+    difficulty: "easy",
+    sabotageType: "communications",
+  },
+];
+
 class GameController {
   public createGame = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -422,8 +473,19 @@ class GameController {
         task.completedAt = new Date();
       }
 
-      // Update player's completed tasks if correct
-      if (isCorrect) {
+      // Handle sabotage task completion
+      let sabotageCleared = false;
+      if (game.sabotageTaskId === taskId && isCorrect) {
+        // Clear the sabotage
+        game.currentSabotage = null;
+        game.sabotageTaskId = null;
+        game.sabotageStartTime = null;
+        game.sabotageDeadline = null;
+        sabotageCleared = true;
+      }
+
+      // Update player's completed tasks if correct and not a sabotage task
+      if (isCorrect && task.assignedTo !== "all") {
         const player = game.players.find((p) => p.playerId === playerId);
         if (player) {
           player.completedTasks.push(taskId);
@@ -438,6 +500,17 @@ class GameController {
 
       await game.save();
 
+      // Check win conditions
+      const winResult = this.checkWinConditions(game);
+      let gameEnded = false;
+      if (winResult.gameOver) {
+        game.gameStatus = "ended";
+        game.winner = winResult.winner;
+        game.endedAt = new Date();
+        await game.save();
+        gameEnded = true;
+      }
+
       // Notify all players about task submission
       const io = getIO();
       io.to(gameId).emit("taskSubmitted", {
@@ -445,12 +518,18 @@ class GameController {
         playerId,
         isCorrect,
         task,
+        sabotageCleared,
+        gameEnded,
+        winner: winResult.winner,
       });
 
       res.status(200).json({
         message: isCorrect ? "Task completed successfully" : "Incorrect answer",
         isCorrect,
         task,
+        sabotageCleared,
+        gameEnded,
+        winner: winResult.winner,
       });
     } catch (error) {
       res.status(500).json({
@@ -686,6 +765,36 @@ class GameController {
     });
   }
 
+  private async checkSabotageDeadline(gameId: string): Promise<void> {
+    const game = await Game.findOne({ gameId });
+    if (!game || !game.sabotageDeadline) {
+      return;
+    }
+
+    const now = new Date();
+    if (now > game.sabotageDeadline && game.currentSabotage) {
+      // Sabotage deadline passed, impostors win
+      game.gameStatus = "ended";
+      game.winner = "impostors";
+      game.endedAt = now;
+
+      // Clear sabotage
+      game.currentSabotage = null;
+      game.sabotageTaskId = null;
+      game.sabotageStartTime = null;
+      game.sabotageDeadline = null;
+
+      await game.save();
+
+      // Notify all players
+      const io = getIO();
+      io.to(gameId).emit("gameEnded", {
+        winner: "impostors",
+        reason: "Sabotage deadline passed",
+      });
+    }
+  }
+
   private checkWinConditions(game: any): {
     gameOver: boolean;
     winner: "crewmates" | "impostors" | null;
@@ -707,6 +816,33 @@ class GameController {
 
     // Crewmates win if all impostors are dead
     if (aliveImpostors === 0) {
+      return { gameOver: true, winner: "crewmates" };
+    }
+
+    // Crewmates win if all regular tasks are completed
+    const crewmates = game.players.filter((p: any) => p.role === "crewmate");
+    let allTasksCompleted = true;
+
+    for (const crewmate of crewmates) {
+      // Get the crewmate's assigned tasks (excluding sabotage tasks)
+      const assignedTasks = game.tasks.filter(
+        (task: any) =>
+          task.assignedTo === crewmate.playerId &&
+          !task.taskId.startsWith("sabotage_")
+      );
+
+      // Check if all assigned tasks are completed
+      const allAssignedCompleted = assignedTasks.every(
+        (task: any) => task.status === "completed"
+      );
+
+      if (!allAssignedCompleted) {
+        allTasksCompleted = false;
+        break;
+      }
+    }
+
+    if (allTasksCompleted && crewmates.length > 0) {
       return { gameOver: true, winner: "crewmates" };
     }
 
@@ -739,8 +875,44 @@ class GameController {
         return;
       }
 
+      // Check if there's already an active sabotage
+      if (game.currentSabotage) {
+        res.status(400).json({ message: "A sabotage is already active" });
+        return;
+      }
+
       // Set the sabotage
       game.currentSabotage = sabotageType;
+
+      // Create a sabotage task
+      const sabotageTaskData = SABOTAGE_TASKS.find(
+        (task) => task.sabotageType === sabotageType
+      );
+      if (sabotageTaskData) {
+        const taskId = `sabotage_${Date.now()}_${Math.floor(
+          Math.random() * 1000
+        )}`;
+
+        const sabotageTask = {
+          taskId,
+          description: sabotageTaskData.description || `Fix ${sabotageType}`,
+          assignedTo: "all", // This is a common task for all crewmates
+          status: "pending" as "pending" | "completed" | "failed",
+          question: sabotageTaskData.question,
+          answer: sabotageTaskData.answer,
+          options: sabotageTaskData.options,
+        };
+
+        // Add the sabotage task to the game
+        game.tasks.push(sabotageTask);
+        game.sabotageTaskId = taskId;
+        game.sabotageStartTime = new Date();
+
+        // Set deadline (30 seconds from now)
+        const deadline = new Date();
+        deadline.setSeconds(deadline.getSeconds() + 30);
+        game.sabotageDeadline = deadline;
+      }
 
       await game.save();
 
@@ -749,9 +921,17 @@ class GameController {
       io.to(gameId).emit("sabotage", {
         sabotageType,
         playerId,
+        sabotageTaskId: game.sabotageTaskId,
+        sabotageDeadline: game.sabotageDeadline,
+        tasks: game.tasks, // Send updated tasks
+        players: game.players, // Send updated players
       });
 
-      res.status(200).json({ message: "Sabotage initiated successfully" });
+      res.status(200).json({
+        message: "Sabotage initiated successfully",
+        sabotageTaskId: game.sabotageTaskId,
+        sabotageDeadline: game.sabotageDeadline,
+      });
     } catch (error) {
       res.status(500).json({
         message:
@@ -795,3 +975,60 @@ class GameController {
 }
 
 export default GameController;
+
+// Add a periodic check for sabotage deadlines
+let sabotageCheckInterval: NodeJS.Timeout | null = null;
+
+// Start the sabotage check interval when the server starts
+export const startSabotageChecker = () => {
+  if (sabotageCheckInterval) {
+    clearInterval(sabotageCheckInterval);
+  }
+
+  sabotageCheckInterval = setInterval(async () => {
+    try {
+      // Find all games with active sabotages
+      const games = await Game.find({
+        currentSabotage: { $ne: null },
+        sabotageDeadline: { $ne: null },
+        gameStatus: "in-progress",
+      });
+
+      const now = new Date();
+
+      for (const game of games) {
+        if (game.sabotageDeadline && now > game.sabotageDeadline) {
+          // Sabotage deadline passed, impostors win
+          game.gameStatus = "ended";
+          game.winner = "impostors";
+          game.endedAt = now;
+
+          // Clear sabotage
+          game.currentSabotage = null;
+          game.sabotageTaskId = null;
+          game.sabotageStartTime = null;
+          game.sabotageDeadline = null;
+
+          await game.save();
+
+          // Notify all players
+          const io = getIO();
+          io.to(game.gameId).emit("gameEnded", {
+            winner: "impostors",
+            reason: "Sabotage deadline passed",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error checking sabotage deadlines:", error);
+    }
+  }, 5000); // Check every 5 seconds
+};
+
+// Stop the sabotage checker
+export const stopSabotageChecker = () => {
+  if (sabotageCheckInterval) {
+    clearInterval(sabotageCheckInterval);
+    sabotageCheckInterval = null;
+  }
+};

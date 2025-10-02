@@ -52,10 +52,18 @@ export const useGameState = (gameId: string, playerId: string) => {
             ?.tasks || [];
         // Remove duplicates from task IDs
         const uniqueTaskIds = [...new Set(playerTaskIds)];
-        // Filter tasks that belong to this player
-        const playerTasks = gameResponse.data.tasks.filter((task: Task) =>
-          uniqueTaskIds.includes(task.taskId)
-        );
+        // Filter tasks that belong to this player (including sabotage tasks for all crewmates)
+        const playerTasks = gameResponse.data.tasks.filter((task: Task) => {
+          // Include regular assigned tasks
+          if (uniqueTaskIds.includes(task.taskId)) {
+            return true;
+          }
+          // Include sabotage tasks (assigned to "all")
+          if (task.assignedTo === "all") {
+            return true;
+          }
+          return false;
+        });
         setTasks(playerTasks);
       } catch (err) {
         setError("Failed to fetch game data");
@@ -66,6 +74,39 @@ export const useGameState = (gameId: string, playerId: string) => {
     };
 
     fetchGameData();
+
+    // Set up a timer to check for sabotage deadlines
+    let sabotageTimer: NodeJS.Timeout | null = null;
+    const setupSabotageTimer = () => {
+      if (sabotageTimer) {
+        clearInterval(sabotageTimer);
+      }
+
+      sabotageTimer = setInterval(() => {
+        if (game && game.sabotageDeadline) {
+          const now = new Date();
+          const deadline = new Date(game.sabotageDeadline);
+
+          // If deadline has passed, the game should end
+          if (now > deadline) {
+            setGame((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    gameStatus: "ended",
+                    winner: "impostors",
+                  }
+                : null
+            );
+
+            if (sabotageTimer) {
+              clearInterval(sabotageTimer);
+              sabotageTimer = null;
+            }
+          }
+        }
+      }, 1000); // Check every second
+    };
 
     // Set up socket listeners
     SocketService.on("gameStarted", (data) => {
@@ -81,10 +122,18 @@ export const useGameState = (gameId: string, playerId: string) => {
               ?.tasks || [];
           // Remove duplicates from task IDs
           const uniqueTaskIds = [...new Set(playerTaskIds)];
-          // Filter tasks that belong to this player
-          const playerTasks = updatedGame.tasks.filter((task: Task) =>
-            uniqueTaskIds.includes(task.taskId)
-          );
+          // Filter tasks that belong to this player (including sabotage tasks for all crewmates)
+          const playerTasks = updatedGame.tasks.filter((task: Task) => {
+            // Include regular assigned tasks
+            if (uniqueTaskIds.includes(task.taskId)) {
+              return true;
+            }
+            // Include sabotage tasks (assigned to "all")
+            if (task.assignedTo === "all") {
+              return true;
+            }
+            return false;
+          });
           setTasks(playerTasks);
         }
 
@@ -103,10 +152,98 @@ export const useGameState = (gameId: string, playerId: string) => {
       );
     });
 
-    SocketService.on("sabotageAlert", (data) => {
-      setGame((prev: Game | null) =>
-        prev ? { ...prev, currentSabotage: data.sabotageType } : null
+    SocketService.on("sabotage", (data) => {
+      setGame((prev: Game | null) => {
+        if (!prev) return null;
+
+        // Update game state with sabotage information
+        const updatedGame = {
+          ...prev,
+          currentSabotage: data.sabotageType,
+          sabotageTaskId: data.sabotageTaskId,
+          sabotageDeadline: data.sabotageDeadline
+            ? new Date(data.sabotageDeadline)
+            : null,
+          tasks: data.tasks || prev.tasks, // Update tasks if provided
+          players: data.players || prev.players, // Update players if provided
+        };
+
+        // Process tasks to include the new sabotage task
+        const playerTaskIds =
+          updatedGame.players.find((p: Player) => p.playerId === playerId)
+            ?.tasks || [];
+        // Remove duplicates from task IDs
+        const uniqueTaskIds = [...new Set(playerTaskIds)];
+        // Filter tasks that belong to this player (including sabotage tasks for all crewmates)
+        const playerTasks = updatedGame.tasks.filter((task: Task) => {
+          // Include regular assigned tasks
+          if (uniqueTaskIds.includes(task.taskId)) {
+            return true;
+          }
+          // Include sabotage tasks (assigned to "all")
+          if (task.assignedTo === "all") {
+            return true;
+          }
+          return false;
+        });
+        setTasks(playerTasks);
+
+        return updatedGame;
+      });
+
+      // Set up sabotage timer when a sabotage is initiated
+      setupSabotageTimer();
+    });
+
+    SocketService.on("taskSubmitted", (data) => {
+      // Update task status
+      setTasks((prev: Task[]) =>
+        prev.map((task: Task) =>
+          task.taskId === data.taskId
+            ? { ...task, status: data.status || "completed" }
+            : task
+        )
       );
+
+      // If this was a sabotage task and it was cleared, update the game state
+      if (data.sabotageCleared) {
+        setGame((prev: Game | null) =>
+          prev
+            ? {
+                ...prev,
+                currentSabotage: null,
+                sabotageTaskId: null,
+                sabotageStartTime: null,
+                sabotageDeadline: null,
+              }
+            : null
+        );
+
+        // Clear the sabotage timer
+        if (sabotageTimer) {
+          clearInterval(sabotageTimer);
+          sabotageTimer = null;
+        }
+      }
+
+      // If the game ended, update the game state
+      if (data.gameEnded) {
+        setGame((prev: Game | null) =>
+          prev
+            ? {
+                ...prev,
+                gameStatus: "ended",
+                winner: data.winner,
+              }
+            : null
+        );
+
+        // Clear the sabotage timer
+        if (sabotageTimer) {
+          clearInterval(sabotageTimer);
+          sabotageTimer = null;
+        }
+      }
     });
 
     SocketService.on("meetingCalled", (data) => {
@@ -143,12 +280,23 @@ export const useGameState = (gameId: string, playerId: string) => {
       setGame((prev: Game | null) =>
         prev ? { ...prev, gameStatus: "ended", winner: data.winner } : null
       );
+
+      // Clear the sabotage timer
+      if (sabotageTimer) {
+        clearInterval(sabotageTimer);
+        sabotageTimer = null;
+      }
     });
 
     // Clean up
     return () => {
       SocketService.leaveGame(gameId, playerId);
       SocketService.disconnect();
+
+      // Clear the sabotage timer
+      if (sabotageTimer) {
+        clearInterval(sabotageTimer);
+      }
     };
   }, [gameId, playerId]);
 

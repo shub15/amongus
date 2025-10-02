@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useGameState } from "../hooks/useGameState";
 
@@ -18,6 +18,56 @@ const GamePage = () => {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [answer, setAnswer] = useState("");
   const [showMeetingButton, setShowMeetingButton] = useState(true);
+  const [sabotageCountdown, setSabotageCountdown] = useState<string>("");
+
+  // Calculate sabotage countdown
+  useEffect(() => {
+    let countdownInterval: NodeJS.Timeout | null = null;
+
+    if (game?.sabotageDeadline) {
+      const updateCountdown = () => {
+        const now = new Date();
+        const deadline = new Date(game.sabotageDeadline!);
+        const diff = deadline.getTime() - now.getTime();
+
+        if (diff <= 0) {
+          setSabotageCountdown("Time's up!");
+          if (countdownInterval) {
+            clearInterval(countdownInterval);
+          }
+        } else {
+          const seconds = Math.floor(diff / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const remainingSeconds = seconds % 60;
+          setSabotageCountdown(
+            `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
+          );
+        }
+      };
+
+      // Initial update
+      updateCountdown();
+
+      // Update every second
+      countdownInterval = setInterval(updateCountdown, 1000);
+    }
+
+    // Cleanup interval
+    return () => {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
+    };
+  }, [game?.sabotageDeadline]);
+
+  // Helper function to check if time is critical (less than 10 seconds)
+  const isTimeCritical = () => {
+    if (!sabotageCountdown || sabotageCountdown === "Time's up!") return false;
+    const parts = sabotageCountdown.split(":");
+    const minutes = parseInt(parts[0]);
+    const seconds = parseInt(parts[1]);
+    return minutes === 0 && seconds < 10;
+  };
 
   if (loading) {
     return (
@@ -46,6 +96,11 @@ const GamePage = () => {
   // Check if player is impostor
   const isImpostor =
     game.players.find((p) => p.playerId === playerId)?.role === "imposter";
+
+  // Find the sabotage task if there's an active sabotage
+  const sabotageTask = game.sabotageTaskId
+    ? game.tasks.find((task) => task.taskId === game.sabotageTaskId)
+    : null;
 
   const handleTaskSubmit = async () => {
     if (!selectedTask || !answer) return;
@@ -200,18 +255,51 @@ const GamePage = () => {
             {/* Tasks */}
             <div className="bg-slate-800 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Tasks</h2>
-                {showMeetingButton && game.gameStatus === "in-progress" && (
-                  <button
-                    onClick={() => handleCallMeeting("emergency")}
-                    className="bg-amongus-blue hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
-                  >
-                    Call Meeting
-                  </button>
-                )}
+                <h2 className="text-xl font-bold">
+                  {game.currentSabotage
+                    ? `Sabotage: ${game.currentSabotage}`
+                    : "Tasks"}
+                </h2>
+                {showMeetingButton &&
+                  game.gameStatus === "in-progress" &&
+                  !game.currentSabotage && (
+                    <button
+                      onClick={() => handleCallMeeting("emergency")}
+                      className="bg-amongus-blue hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
+                    >
+                      Call Meeting
+                    </button>
+                  )}
               </div>
 
-              {tasks.length === 0 ? (
+              {game.currentSabotage && sabotageTask ? (
+                <div
+                  className="p-4 rounded-lg bg-slate-700 hover:bg-slate-600 cursor-pointer transition duration-200"
+                  onClick={() => setSelectedTask(sabotageTask)}
+                >
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-bold">{sabotageTask.description}</h3>
+                    <span className="text-xs px-2 py-1 rounded bg-red-500">
+                      SABOTAGE
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-400 mt-1">
+                    {sabotageTask.category || "Emergency"} •{" "}
+                    {sabotageTask.difficulty || "urgent"}
+                  </div>
+                  {game.sabotageDeadline && (
+                    <div
+                      className={`text-sm mt-2 ${
+                        isTimeCritical()
+                          ? "text-red-500 font-bold animate-pulse"
+                          : "text-red-400"
+                      }`}
+                    >
+                      Time remaining: {sabotageCountdown}
+                    </div>
+                  )}
+                </div>
+              ) : tasks.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   No tasks assigned
                 </div>

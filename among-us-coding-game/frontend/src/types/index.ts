@@ -9,6 +9,9 @@ export interface Player {
   votes: string[];
   hasVoted: boolean;
   isImpostor: boolean;
+  currentRoom: string;
+  lastKillTime: Date | null;
+  isVenting: boolean;
 }
 
 export interface Task {
@@ -23,6 +26,17 @@ export interface Task {
   difficulty: "easy" | "medium" | "hard";
   createdAt: Date;
   completedAt: Date | null;
+  isEmergency?: boolean;
+  deadline?: Date;
+}
+
+export interface Room {
+  name: string;
+  displayName: string;
+  adjacentRooms: string[];
+  ventsTo: string[];
+  tasks: string[];
+  position: { x: number; y: number };
 }
 
 export interface Game {
@@ -32,9 +46,6 @@ export interface Game {
   gameStatus: "waiting" | "in-progress" | "discussion" | "voting" | "ended";
   imposterCount: number;
   currentSabotage: string | null;
-  sabotageTaskId: string | null;
-  sabotageStartTime: Date | null;
-  sabotageDeadline: Date | null;
   votes: Map<string, string>;
   voteHistory: Array<{ round: number; votes: Map<string, string> }>;
   deadPlayers: string[];
@@ -43,4 +54,9 @@ export interface Game {
   startedAt: Date | null;
   endedAt: Date | null;
   winner: "crewmates" | "impostors" | null;
+  map: Room[];
+  killCooldown: number;
+  ventCooldown: number;
+  sabotageDeadline?: Date | null;
+  emergencyTaskId?: string | null;
 }

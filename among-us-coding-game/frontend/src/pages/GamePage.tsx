@@ -1,73 +1,65 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useGameState } from "../hooks/useGameState";
+import GameMap from "../components/GameMap";
 
 const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const playerId = localStorage.getItem("playerId") || "";
   const {
     game,
+    players,
     tasks,
+    map,
+    emergencyTask,
+    sabotageDeadline,
     loading,
     error,
     submitTask,
     callMeeting,
     vote,
     sabotage,
+    movePlayer,
+    useVent,
+    killPlayer,
+    reportBody,
   } = useGameState(gameId!, playerId);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [answer, setAnswer] = useState("");
   const [showMeetingButton, setShowMeetingButton] = useState(true);
-  const [sabotageCountdown, setSabotageCountdown] = useState<string>("");
+  const [currentPlayer, setCurrentPlayer] = useState<any>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
-  // Calculate sabotage countdown
+  // Find current player
   useEffect(() => {
-    let countdownInterval: NodeJS.Timeout | null = null;
+    if (players && playerId) {
+      const player = players.find((p: any) => p.playerId === playerId);
+      setCurrentPlayer(player);
+    }
+  }, [players, playerId]);
 
-    if (game?.sabotageDeadline) {
-      const updateCountdown = () => {
-        const now = new Date();
-        const deadline = new Date(game.sabotageDeadline!);
-        const diff = deadline.getTime() - now.getTime();
-
-        if (diff <= 0) {
-          setSabotageCountdown("Time's up!");
-          if (countdownInterval) {
-            clearInterval(countdownInterval);
-          }
-        } else {
-          const seconds = Math.floor(diff / 1000);
-          const minutes = Math.floor(seconds / 60);
-          const remainingSeconds = seconds % 60;
-          setSabotageCountdown(
-            `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
-          );
-        }
-      };
-
-      // Initial update
-      updateCountdown();
-
-      // Update every second
-      countdownInterval = setInterval(updateCountdown, 1000);
+  // Timer for sabotage deadline
+  useEffect(() => {
+    if (!sabotageDeadline) {
+      setTimeLeft(null);
+      return;
     }
 
-    // Cleanup interval
-    return () => {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-      }
-    };
-  }, [game?.sabotageDeadline]);
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const deadline = new Date(sabotageDeadline).getTime();
+      const difference = deadline - now;
 
-  // Helper function to check if time is critical (less than 10 seconds)
-  const isTimeCritical = () => {
-    if (!sabotageCountdown || sabotageCountdown === "Time's up!") return false;
-    const parts = sabotageCountdown.split(":");
-    const minutes = parseInt(parts[0]);
-    const seconds = parseInt(parts[1]);
-    return minutes === 0 && seconds < 10;
-  };
+      if (difference <= 0) {
+        setTimeLeft(0);
+        clearInterval(interval);
+      } else {
+        setTimeLeft(Math.floor(difference / 1000));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sabotageDeadline]);
 
   if (loading) {
     return (
@@ -94,13 +86,7 @@ const GamePage = () => {
   }
 
   // Check if player is impostor
-  const isImpostor =
-    game.players.find((p) => p.playerId === playerId)?.role === "imposter";
-
-  // Find the sabotage task if there's an active sabotage
-  const sabotageTask = game.sabotageTaskId
-    ? game.tasks.find((task) => task.taskId === game.sabotageTaskId)
-    : null;
+  const isImpostor = currentPlayer?.role === "imposter";
 
   const handleTaskSubmit = async () => {
     if (!selectedTask || !answer) return;
@@ -155,16 +141,26 @@ const GamePage = () => {
             <div>
               <span className="font-bold">Players: </span>
               <span>
-                {game.players.filter((p) => p.status === "alive").length} alive,{" "}
+                {players.filter((p: any) => p.status === "alive").length} alive,{" "}
               </span>
               <span>
-                {game.players.filter((p) => p.status === "dead").length} dead
+                {players.filter((p: any) => p.status === "dead").length} dead
               </span>
             </div>
             <div>
               {game.currentSabotage && (
                 <span className="bg-red-500 px-3 py-1 rounded-full text-sm">
                   Sabotage: {game.currentSabotage}
+                </span>
+              )}
+              {timeLeft !== null && timeLeft > 0 && (
+                <span className="ml-2 bg-yellow-500 px-3 py-1 rounded-full text-sm">
+                  Time left: {timeLeft}s
+                </span>
+              )}
+              {timeLeft === 0 && (
+                <span className="ml-2 bg-red-500 px-3 py-1 rounded-full text-sm">
+                  Time's up!
                 </span>
               )}
             </div>
@@ -177,7 +173,7 @@ const GamePage = () => {
             <div className="bg-slate-800 rounded-lg p-4">
               <h2 className="text-xl font-bold mb-4">Players</h2>
               <div className="space-y-2">
-                {game.players.map((player) => (
+                {players.map((player: any) => (
                   <div
                     key={player.playerId}
                     className={`flex items-center justify-between p-3 rounded ${
@@ -193,18 +189,11 @@ const GamePage = () => {
                         }`}
                       ></div>
                       <span>{player.name}</span>
-                      {player.playerId === playerId &&
-                        player.role === "imposter" && (
-                          <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded">
-                            Impostor
-                          </span>
-                        )}
-                      {player.playerId === playerId &&
-                        player.role === "crewmate" && (
-                          <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">
-                            Crewmate
-                          </span>
-                        )}
+                      {player.role === "imposter" && (
+                        <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded">
+                          Impostor
+                        </span>
+                      )}
                     </div>
                     {player.playerId === playerId && (
                       <span className="text-xs bg-amongus-blue text-white px-2 py-1 rounded">
@@ -252,93 +241,130 @@ const GamePage = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-2">
+            {/* Game Map */}
+            {map && (
+              <div className="bg-slate-800 rounded-lg p-4 mb-6">
+                <GameMap
+                  gameId={gameId!}
+                  playerId={playerId}
+                  playerRole={currentPlayer?.role || "crewmate"}
+                  players={players}
+                  map={map}
+                  onMoveToRoom={movePlayer}
+                  onUseVent={useVent}
+                  onKillPlayer={killPlayer}
+                  onReportBody={reportBody}
+                />
+              </div>
+            )}
+
+            {/* Emergency Task */}
+            {emergencyTask && (
+              <div className="bg-red-900 rounded-lg p-4 mb-6">
+                <h2 className="text-xl font-bold mb-4 text-yellow-300">
+                  EMERGENCY TASK
+                </h2>
+                <p className="mb-4">{emergencyTask.question}</p>
+
+                <div className="space-y-2 mb-4">
+                  {emergencyTask.options.map(
+                    (option: string, index: number) => (
+                      <div
+                        key={index}
+                        className={`p-3 rounded cursor-pointer ${
+                          answer === option
+                            ? "bg-amongus-blue"
+                            : "bg-red-800 hover:bg-red-700"
+                        }`}
+                        onClick={() => setAnswer(option)}
+                      >
+                        {option}
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <div className="text-sm">
+                    {timeLeft !== null && timeLeft > 0 && (
+                      <span>Time left: {timeLeft} seconds</span>
+                    )}
+                    {timeLeft === 0 && (
+                      <span className="text-red-300">
+                        Time's up! Impostors win!
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleTaskSubmit}
+                    disabled={!answer}
+                    className={`py-2 px-4 rounded text-white ${
+                      answer
+                        ? "bg-amongus-green hover:bg-green-600"
+                        : "bg-gray-500 cursor-not-allowed"
+                    }`}
+                  >
+                    Submit Emergency Task
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Tasks */}
             <div className="bg-slate-800 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">
-                  {game.currentSabotage
-                    ? `Sabotage: ${game.currentSabotage}`
-                    : "Tasks"}
-                </h2>
-                {showMeetingButton &&
-                  game.gameStatus === "in-progress" &&
-                  !game.currentSabotage && (
-                    <button
-                      onClick={() => handleCallMeeting("emergency")}
-                      className="bg-amongus-blue hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
-                    >
-                      Call Meeting
-                    </button>
-                  )}
+                <h2 className="text-xl font-bold">Tasks</h2>
+                {showMeetingButton && game.gameStatus === "in-progress" && (
+                  <button
+                    onClick={() => handleCallMeeting("emergency")}
+                    className="bg-amongus-blue hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
+                  >
+                    Call Meeting
+                  </button>
+                )}
               </div>
 
-              {game.currentSabotage && sabotageTask ? (
-                <div
-                  className="p-4 rounded-lg bg-slate-700 hover:bg-slate-600 cursor-pointer transition duration-200"
-                  onClick={() => setSelectedTask(sabotageTask)}
-                >
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-bold">{sabotageTask.description}</h3>
-                    <span className="text-xs px-2 py-1 rounded bg-red-500">
-                      SABOTAGE
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-400 mt-1">
-                    {sabotageTask.category || "Emergency"} •{" "}
-                    {sabotageTask.difficulty || "urgent"}
-                  </div>
-                  {game.sabotageDeadline && (
-                    <div
-                      className={`text-sm mt-2 ${
-                        isTimeCritical()
-                          ? "text-red-500 font-bold animate-pulse"
-                          : "text-red-400"
-                      }`}
-                    >
-                      Time remaining: {sabotageCountdown}
-                    </div>
-                  )}
-                </div>
-              ) : tasks.length === 0 ? (
+              {tasks.filter((task: any) => !task.isEmergency).length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   No tasks assigned
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tasks.map((task) => (
-                    <div
-                      key={task.taskId}
-                      className={`p-4 rounded-lg cursor-pointer transition duration-200 ${
-                        task.status === "completed"
-                          ? "bg-green-900"
-                          : task.status === "failed"
-                          ? "bg-red-900"
-                          : "bg-slate-700 hover:bg-slate-600"
-                      }`}
-                      onClick={() =>
-                        task.status === "pending" && setSelectedTask(task)
-                      }
-                    >
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold">{task.description}</h3>
-                        <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            task.status === "completed"
-                              ? "bg-green-500"
-                              : task.status === "failed"
-                              ? "bg-red-500"
-                              : "bg-gray-500"
-                          }`}
-                        >
-                          {task.status}
-                        </span>
+                  {tasks
+                    .filter((task: any) => !task.isEmergency)
+                    .map((task: any) => (
+                      <div
+                        key={task.taskId}
+                        className={`p-4 rounded-lg cursor-pointer transition duration-200 ${
+                          task.status === "completed"
+                            ? "bg-green-900"
+                            : task.status === "failed"
+                            ? "bg-red-900"
+                            : "bg-slate-700 hover:bg-slate-600"
+                        }`}
+                        onClick={() =>
+                          task.status === "pending" && setSelectedTask(task)
+                        }
+                      >
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold">{task.description}</h3>
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              task.status === "completed"
+                                ? "bg-green-500"
+                                : task.status === "failed"
+                                ? "bg-red-500"
+                                : "bg-gray-500"
+                            }`}
+                          >
+                            {task.status}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-400 mt-1">
+                          {task.category} • {task.difficulty}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-400 mt-1">
-                        {task.category || "General"} •{" "}
-                        {task.difficulty || "medium"}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
@@ -403,9 +429,9 @@ const GamePage = () => {
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {game.players
-                    .filter((p) => p.status === "alive")
-                    .map((player) => (
+                  {players
+                    .filter((p: any) => p.status === "alive")
+                    .map((player: any) => (
                       <button
                         key={player.playerId}
                         onClick={() => vote(player.playerId)}

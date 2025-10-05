@@ -11,6 +11,9 @@ export interface IPlayer extends Document {
   votes: string[]; // Array of player IDs this player has voted for
   hasVoted: boolean; // Whether the player has voted in the current round
   isImpostor: boolean; // Whether the player is an imposter
+  currentRoom: string; // Current room the player is in
+  lastKillTime: Date | null; // Timestamp of last kill (for cooldown)
+  isVenting: boolean; // Whether the player is currently venting
 }
 
 const PlayerSchema: Schema = new Schema(
@@ -35,6 +38,9 @@ const PlayerSchema: Schema = new Schema(
     votes: [{ type: String }], // Array of player IDs voted for
     hasVoted: { type: Boolean, default: false, index: true },
     isImpostor: { type: Boolean, default: false, index: true },
+    currentRoom: { type: String, default: "cafeteria", index: true }, // Default starting room
+    lastKillTime: { type: Date, default: null },
+    isVenting: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -45,6 +51,7 @@ const PlayerSchema: Schema = new Schema(
 PlayerSchema.index({ playerId: 1 });
 PlayerSchema.index({ isOnline: 1 });
 PlayerSchema.index({ role: 1 });
+PlayerSchema.index({ currentRoom: 1 });
 
 const Player = mongoose.model<IPlayer>("Player", PlayerSchema);
 

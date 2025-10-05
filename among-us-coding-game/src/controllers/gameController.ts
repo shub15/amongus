@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import Game from "../models/Game";
 import Player from "../models/Player";
 import { TaskModel, ITask } from "../models/Task";
-import SocketService, {
-  getIO,
-  sanitizeGameForPlayer,
-} from "../services/socketService";
+import SocketService, { getIO } from "../services/socketService";
 
 // Sample technical questions database
 const TECHNICAL_QUESTIONS = [
@@ -101,6 +98,28 @@ const SABOTAGE_TASKS = [
     sabotageType: "communications",
   },
 ];
+// Function to sanitize game data for a specific player
+// Hides roles of other players to prevent cheating
+const sanitizeGameForPlayer = (game: any, playerId: string) => {
+  // Create a copy of the game object
+  const sanitizedGame = JSON.parse(JSON.stringify(game));
+
+  // Hide roles of other players
+  sanitizedGame.players = sanitizedGame.players.map((player: any) => {
+    // If this is the current player, show their role
+    if (player.playerId === playerId) {
+      return player;
+    }
+
+    // For other players, hide their role but keep other information
+    return {
+      ...player,
+      role: "hidden", // Hide the actual role
+    };
+  });
+
+  return sanitizedGame;
+};
 
 class GameController {
   public createGame = async (req: Request, res: Response): Promise<void> => {
@@ -152,7 +171,7 @@ class GameController {
       const { playerId } = req.body;
       console.log("Joining game:", gameId, "with player:", playerId);
 
-      // Optimize query by selecting only necessary fields
+      // Find the game
       const game = await Game.findOne({ gameId }).select({
         gameStatus: 1,
         players: 1,
@@ -184,6 +203,9 @@ class GameController {
         completedTasks: 1,
         votes: 1,
         hasVoted: 1,
+        currentRoom: 1,
+        lastKillTime: 1,
+        isVenting: 1,
       });
 
       if (!player) {
@@ -212,6 +234,9 @@ class GameController {
         completedTasks: player.completedTasks,
         votes: player.votes,
         hasVoted: player.hasVoted,
+        currentRoom: player.currentRoom,
+        lastKillTime: player.lastKillTime,
+        isVenting: player.isVenting,
       });
 
       await game.save();
@@ -267,13 +292,11 @@ class GameController {
 
       // Notify all players that the game has started
       const io = getIO();
-      // Emit sanitized game data to each player
-      for (const player of game.players) {
-        io.to(player.playerId).emit(
-          "gameStarted",
-          sanitizeGameForPlayer(game, player.playerId)
-        );
-      }
+      io.to(gameId).emit("gameStarted", {
+        players: game.players,
+        tasks: game.tasks,
+        map: game.map,
+      });
 
       res.status(200).json({ message: "Game started successfully", game });
     } catch (error) {
@@ -353,7 +376,7 @@ class GameController {
 
         tasks.push(task);
 
-        // Add task ID to player's tasks (only once)
+        // Add task ID to player's tasks
         player.tasks.push(taskId);
 
         // Update in the game players array
@@ -361,10 +384,7 @@ class GameController {
           (p: any) => p.playerId === player.playerId
         );
         if (gamePlayer) {
-          // Only add if not already present to avoid duplicates
-          if (!gamePlayer.tasks.includes(taskId)) {
-            gamePlayer.tasks.push(taskId);
-          }
+          gamePlayer.tasks.push(taskId);
         }
       }
     }
@@ -376,14 +396,12 @@ class GameController {
     }
 
     game.tasks = tasks;
-    // Save the game with updated tasks and player task assignments
-    await game.save();
   }
 
   public getGame = async (req: Request, res: Response): Promise<void> => {
     try {
       const { gameId } = req.params;
-      const { playerId } = req.query; // Get the requesting player's ID
+      const playerId = (req as any).user?.playerId; // Get player ID from auth token
       console.log("Fetching game data for gameId:", gameId);
 
       // Optimize query by selecting only necessary fields
@@ -399,32 +417,10 @@ class GameController {
         return;
       }
 
-      // Create a sanitized version of the game data
-      const gameObj = game.toObject();
-      const sanitizedGame = {
-        ...gameObj,
-        players: gameObj.players.map((player: any) => {
-          // For the requesting player, send their own role
-          if (playerId && player.playerId === playerId) {
-            return {
-              ...player,
-              role: player.role || "unknown",
-            };
-          }
-          // For other players, hide their role but preserve other properties
-          return {
-            playerId: player.playerId,
-            name: player.name,
-            status: player.status,
-            isOnline: player.isOnline,
-            tasks: player.tasks || [],
-            completedTasks: player.completedTasks || [],
-            votes: player.votes || [],
-            hasVoted: player.hasVoted || false,
-            role: "unknown", // Hide role from other players
-          };
-        }),
-      };
+      // Sanitize game data to hide other players' roles
+      const sanitizedGame = playerId
+        ? sanitizeGameForPlayer(game, playerId)
+        : game;
 
       console.log("Game data fetched successfully");
       res.status(200).json(sanitizedGame);
@@ -473,19 +469,32 @@ class GameController {
         task.completedAt = new Date();
       }
 
-      // Handle sabotage task completion
-      let sabotageCleared = false;
-      if (game.sabotageTaskId === taskId && isCorrect) {
-        // Clear the sabotage
+      // Handle emergency task completion
+      if (task.isEmergency && isCorrect) {
+        // Clear the sabotage and emergency task
         game.currentSabotage = null;
-        game.sabotageTaskId = null;
-        game.sabotageStartTime = null;
+        game.emergencyTaskId = null;
         game.sabotageDeadline = null;
-        sabotageCleared = true;
+
+        // Check win conditions - if all regular tasks are completed, crewmates win
+        const regularTasks = game.tasks.filter((t) => !t.isEmergency);
+        const completedRegularTasks = regularTasks.filter(
+          (t) => t.status === "completed"
+        ).length;
+
+        if (
+          regularTasks.length > 0 &&
+          completedRegularTasks === regularTasks.length
+        ) {
+          // All tasks completed - crewmates win
+          game.gameStatus = "ended";
+          game.winner = "crewmates";
+          game.endedAt = new Date();
+        }
       }
 
-      // Update player's completed tasks if correct and not a sabotage task
-      if (isCorrect && task.assignedTo !== "all") {
+      // Update player's completed tasks if correct (only for non-emergency tasks)
+      if (isCorrect && !task.isEmergency) {
         const player = game.players.find((p) => p.playerId === playerId);
         if (player) {
           player.completedTasks.push(taskId);
@@ -500,17 +509,6 @@ class GameController {
 
       await game.save();
 
-      // Check win conditions
-      const winResult = this.checkWinConditions(game);
-      let gameEnded = false;
-      if (winResult.gameOver) {
-        game.gameStatus = "ended";
-        game.winner = winResult.winner;
-        game.endedAt = new Date();
-        await game.save();
-        gameEnded = true;
-      }
-
       // Notify all players about task submission
       const io = getIO();
       io.to(gameId).emit("taskSubmitted", {
@@ -518,18 +516,28 @@ class GameController {
         playerId,
         isCorrect,
         task,
-        sabotageCleared,
-        gameEnded,
-        winner: winResult.winner,
       });
+
+      // If this was an emergency task and it was completed correctly, notify all players
+      if (task.isEmergency && isCorrect) {
+        io.to(gameId).emit("sabotageCleared", {
+          message: "Sabotage has been cleared!",
+          taskId,
+        });
+
+        // If the game ended due to all tasks completed, notify players
+        if (game.gameStatus === "ended" && game.winner === "crewmates") {
+          io.to(gameId).emit("gameEnded", {
+            winner: "crewmates",
+            reason: "All tasks completed",
+          });
+        }
+      }
 
       res.status(200).json({
         message: isCorrect ? "Task completed successfully" : "Incorrect answer",
         isCorrect,
         task,
-        sabotageCleared,
-        gameEnded,
-        winner: winResult.winner,
       });
     } catch (error) {
       res.status(500).json({
@@ -765,36 +773,6 @@ class GameController {
     });
   }
 
-  private async checkSabotageDeadline(gameId: string): Promise<void> {
-    const game = await Game.findOne({ gameId });
-    if (!game || !game.sabotageDeadline) {
-      return;
-    }
-
-    const now = new Date();
-    if (now > game.sabotageDeadline && game.currentSabotage) {
-      // Sabotage deadline passed, impostors win
-      game.gameStatus = "ended";
-      game.winner = "impostors";
-      game.endedAt = now;
-
-      // Clear sabotage
-      game.currentSabotage = null;
-      game.sabotageTaskId = null;
-      game.sabotageStartTime = null;
-      game.sabotageDeadline = null;
-
-      await game.save();
-
-      // Notify all players
-      const io = getIO();
-      io.to(gameId).emit("gameEnded", {
-        winner: "impostors",
-        reason: "Sabotage deadline passed",
-      });
-    }
-  }
-
   private checkWinConditions(game: any): {
     gameOver: boolean;
     winner: "crewmates" | "impostors" | null;
@@ -816,33 +794,6 @@ class GameController {
 
     // Crewmates win if all impostors are dead
     if (aliveImpostors === 0) {
-      return { gameOver: true, winner: "crewmates" };
-    }
-
-    // Crewmates win if all regular tasks are completed
-    const crewmates = game.players.filter((p: any) => p.role === "crewmate");
-    let allTasksCompleted = true;
-
-    for (const crewmate of crewmates) {
-      // Get the crewmate's assigned tasks (excluding sabotage tasks)
-      const assignedTasks = game.tasks.filter(
-        (task: any) =>
-          task.assignedTo === crewmate.playerId &&
-          !task.taskId.startsWith("sabotage_")
-      );
-
-      // Check if all assigned tasks are completed
-      const allAssignedCompleted = assignedTasks.every(
-        (task: any) => task.status === "completed"
-      );
-
-      if (!allAssignedCompleted) {
-        allTasksCompleted = false;
-        break;
-      }
-    }
-
-    if (allTasksCompleted && crewmates.length > 0) {
       return { gameOver: true, winner: "crewmates" };
     }
 
@@ -875,63 +826,426 @@ class GameController {
         return;
       }
 
-      // Check if there's already an active sabotage
-      if (game.currentSabotage) {
-        res.status(400).json({ message: "A sabotage is already active" });
-        return;
-      }
-
       // Set the sabotage
       game.currentSabotage = sabotageType;
 
-      // Create a sabotage task
-      const sabotageTaskData = SABOTAGE_TASKS.find(
+      // Create emergency task for all players
+      const emergencyTaskId = `emergency_${Date.now()}_${Math.floor(
+        Math.random() * 1000
+      )}`;
+      const deadline = new Date(Date.now() + 30000); // 30 seconds from now
+
+      // Find the appropriate sabotage task
+      const sabotageTask = SABOTAGE_TASKS.find(
         (task) => task.sabotageType === sabotageType
-      );
-      if (sabotageTaskData) {
-        const taskId = `sabotage_${Date.now()}_${Math.floor(
-          Math.random() * 1000
-        )}`;
+      ) || {
+        description: `Emergency: Fix ${sabotageType} sabotage`,
+        question: `Emergency! Fix the ${sabotageType} sabotage immediately:`,
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        answer: "Option A",
+        category: "Emergency",
+        difficulty: "medium",
+      };
 
-        const sabotageTask = {
-          taskId,
-          description: sabotageTaskData.description || `Fix ${sabotageType}`,
-          assignedTo: "all", // This is a common task for all crewmates
-          status: "pending" as "pending" | "completed" | "failed",
-          question: sabotageTaskData.question,
-          answer: sabotageTaskData.answer,
-          options: sabotageTaskData.options,
-        };
+      // Create the emergency task object that matches the ITask interface
+      const emergencyTaskData = {
+        taskId: emergencyTaskId,
+        description: sabotageTask.description,
+        assignedTo: "all", // Assigned to all players
+        status: "pending" as const,
+        question: sabotageTask.question,
+        answer: sabotageTask.answer,
+        options: sabotageTask.options,
+        category: sabotageTask.category,
+        difficulty: sabotageTask.difficulty,
+        isEmergency: true,
+        deadline: deadline,
+        createdAt: new Date(),
+        completedAt: null,
+      };
 
-        // Add the sabotage task to the game
-        game.tasks.push(sabotageTask);
-        game.sabotageTaskId = taskId;
-        game.sabotageStartTime = new Date();
-
-        // Set deadline (30 seconds from now)
-        const deadline = new Date();
-        deadline.setSeconds(deadline.getSeconds() + 30);
-        game.sabotageDeadline = deadline;
-      }
+      // Add emergency task to game
+      game.tasks.push(emergencyTaskData);
+      game.emergencyTaskId = emergencyTaskId;
+      game.sabotageDeadline = deadline;
 
       await game.save();
 
-      // Notify all players about the sabotage
+      // Notify all players about the sabotage and emergency task
       const io = getIO();
       io.to(gameId).emit("sabotage", {
         sabotageType,
         playerId,
-        sabotageTaskId: game.sabotageTaskId,
-        sabotageDeadline: game.sabotageDeadline,
-        tasks: game.tasks, // Send updated tasks
-        players: game.players, // Send updated players
+        emergencyTask: emergencyTaskData,
+        deadline: deadline.toISOString(),
       });
 
-      res.status(200).json({
-        message: "Sabotage initiated successfully",
-        sabotageTaskId: game.sabotageTaskId,
-        sabotageDeadline: game.sabotageDeadline,
+      // Start a timer to check if the emergency task is completed in time
+      setTimeout(async () => {
+        // Check if the game still exists and the emergency task is still pending
+        const updatedGame = await Game.findOne({ gameId });
+        if (
+          updatedGame &&
+          updatedGame.emergencyTaskId === emergencyTaskId &&
+          updatedGame.gameStatus !== "ended"
+        ) {
+          // Check if the emergency task is still pending
+          const task = updatedGame.tasks.find(
+            (t) => t.taskId === emergencyTaskId
+          );
+          if (task && task.status === "pending") {
+            // Emergency task was not completed in time - impostors win
+            updatedGame.gameStatus = "ended";
+            updatedGame.winner = "impostors";
+            updatedGame.endedAt = new Date();
+            updatedGame.currentSabotage = null;
+            updatedGame.emergencyTaskId = null;
+            updatedGame.sabotageDeadline = null;
+
+            await updatedGame.save();
+
+            // Notify all players that impostors win due to sabotage timeout
+            io.to(gameId).emit("gameEnded", {
+              winner: "impostors",
+              reason: "Sabotage emergency task not completed in time",
+            });
+          }
+        }
+      }, 30000); // 30 seconds
+
+      res
+        .status(200)
+        .json({
+          message: "Sabotage initiated successfully",
+          emergencyTask: emergencyTaskData,
+        });
+    } catch (error) {
+      res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "An unknown error occurred",
       });
+    }
+  };
+
+  public movePlayer = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { gameId } = req.params;
+      const { playerId, targetRoom } = req.body;
+
+      // Find the game
+      const game = await Game.findOne({ gameId });
+      if (!game) {
+        res.status(404).json({ message: "Game not found" });
+        return;
+      }
+
+      // Find the player
+      const player = game.players.find((p) => p.playerId === playerId);
+      if (!player) {
+        res.status(404).json({ message: "Player not found" });
+        return;
+      }
+
+      // Check if player is alive
+      if (player.status !== "alive") {
+        res.status(400).json({ message: "Dead players cannot move" });
+        return;
+      }
+
+      // Validate that target room exists
+      const targetRoomObj = game.map.find(
+        (room: any) => room.name === targetRoom
+      );
+      if (!targetRoomObj) {
+        res.status(400).json({ message: "Target room does not exist" });
+        return;
+      }
+
+      // Validate that target room is adjacent to current room
+      const currentRoomObj = game.map.find(
+        (room: any) => room.name === player.currentRoom
+      );
+      if (
+        !currentRoomObj ||
+        !currentRoomObj.adjacentRooms.includes(targetRoom)
+      ) {
+        res.status(400).json({ message: "Cannot move to non-adjacent room" });
+        return;
+      }
+
+      // Update player's current room
+      player.currentRoom = targetRoom;
+
+      // Update in database
+      await Player.findOneAndUpdate({ playerId }, { currentRoom: targetRoom });
+
+      await game.save();
+
+      // Notify all players about the move
+      const io = getIO();
+      io.to(gameId).emit("playerMoved", {
+        playerId,
+        playerName: player.name,
+        roomName: targetRoom,
+      });
+
+      res.status(200).json({ message: "Player moved successfully" });
+    } catch (error) {
+      res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  };
+
+  public useVent = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { gameId } = req.params;
+      const { playerId, targetRoom } = req.body;
+
+      // Find the game
+      const game = await Game.findOne({ gameId });
+      if (!game) {
+        res.status(404).json({ message: "Game not found" });
+        return;
+      }
+
+      // Find the player
+      const player = game.players.find((p) => p.playerId === playerId);
+      if (!player) {
+        res.status(404).json({ message: "Player not found" });
+        return;
+      }
+
+      // Check if player is alive
+      if (player.status !== "alive") {
+        res.status(400).json({ message: "Dead players cannot use vents" });
+        return;
+      }
+
+      // Check if player is an imposter
+      if (player.role !== "imposter") {
+        res.status(403).json({ message: "Only impostors can use vents" });
+        return;
+      }
+
+      // Check if target room is a valid vent destination
+      const currentRoom = game.map.find(
+        (room: any) => room.name === player.currentRoom
+      );
+      if (!currentRoom || !currentRoom.ventsTo.includes(targetRoom)) {
+        res.status(400).json({ message: "Invalid vent destination" });
+        return;
+      }
+
+      // Check vent cooldown
+      if (player.lastKillTime) {
+        const timeSinceLastKill =
+          (new Date().getTime() - player.lastKillTime.getTime()) / 1000;
+        if (timeSinceLastKill < game.ventCooldown) {
+          res.status(400).json({
+            message: `Vent cooldown active. ${Math.ceil(
+              game.ventCooldown - timeSinceLastKill
+            )} seconds remaining.`,
+          });
+          return;
+        }
+      }
+
+      // Update player's current room and venting status
+      player.currentRoom = targetRoom;
+      player.isVenting = true;
+
+      // Update in database
+      await Player.findOneAndUpdate(
+        { playerId },
+        { currentRoom: targetRoom, isVenting: true, lastKillTime: new Date() }
+      );
+
+      await game.save();
+
+      // Notify all players about the vent move
+      const io = getIO();
+      io.to(gameId).emit("playerVentMove", {
+        playerId,
+        playerName: player.name,
+        targetRoom,
+      });
+
+      // Reset venting status after a short delay
+      setTimeout(async () => {
+        await Player.updateOne({ playerId }, { isVenting: false });
+      }, 2000);
+
+      res.status(200).json({ message: "Vent move successful" });
+    } catch (error) {
+      res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  };
+
+  public killPlayer = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { gameId } = req.params;
+      const { killerId, targetId } = req.body;
+
+      // Find the game
+      const game = await Game.findOne({ gameId });
+      if (!game) {
+        res.status(404).json({ message: "Game not found" });
+        return;
+      }
+
+      // Find the killer
+      const killer = game.players.find((p) => p.playerId === killerId);
+      if (!killer) {
+        res.status(404).json({ message: "Killer not found" });
+        return;
+      }
+
+      // Check if killer is an imposter
+      if (killer.role !== "imposter") {
+        res.status(403).json({ message: "Only impostors can kill" });
+        return;
+      }
+
+      // Check if killer is alive
+      if (killer.status !== "alive") {
+        res.status(400).json({ message: "Dead players cannot kill" });
+        return;
+      }
+
+      // Find the target
+      const target = game.players.find((p) => p.playerId === targetId);
+      if (!target) {
+        res.status(404).json({ message: "Target not found" });
+        return;
+      }
+
+      // Check if target is alive
+      if (target.status !== "alive") {
+        res.status(400).json({ message: "Cannot kill a dead player" });
+        return;
+      }
+
+      // Check if both players are in the same room
+      if (killer.currentRoom !== target.currentRoom) {
+        res
+          .status(400)
+          .json({ message: "Players must be in the same room to kill" });
+        return;
+      }
+
+      // Check kill cooldown
+      if (killer.lastKillTime) {
+        const timeSinceLastKill =
+          (new Date().getTime() - killer.lastKillTime.getTime()) / 1000;
+        if (timeSinceLastKill < game.killCooldown) {
+          res.status(400).json({
+            message: `Kill cooldown active. ${Math.ceil(
+              game.killCooldown - timeSinceLastKill
+            )} seconds remaining.`,
+          });
+          return;
+        }
+      }
+
+      // Update target player's status to dead
+      target.status = "dead";
+      game.deadPlayers.push(targetId);
+
+      // Update killer's last kill time
+      killer.lastKillTime = new Date();
+
+      // Update in database
+      await Player.findOneAndUpdate({ playerId: targetId }, { status: "dead" });
+
+      await Player.findOneAndUpdate(
+        { playerId: killerId },
+        { lastKillTime: new Date() }
+      );
+
+      await game.save();
+
+      // Notify all players about the kill
+      const io = getIO();
+      io.to(gameId).emit("playerKilled", {
+        killerId,
+        targetId,
+        targetName: target.name,
+        killerName: killer.name,
+      });
+
+      res.status(200).json({ message: "Player killed successfully" });
+    } catch (error) {
+      res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  };
+
+  public reportBody = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { gameId } = req.params;
+      const { reporterId, deadPlayerId } = req.body;
+
+      // Find the game
+      const game = await Game.findOne({ gameId });
+      if (!game) {
+        res.status(404).json({ message: "Game not found" });
+        return;
+      }
+
+      // Find the reporter
+      const reporter = game.players.find((p) => p.playerId === reporterId);
+      if (!reporter) {
+        res.status(404).json({ message: "Reporter not found" });
+        return;
+      }
+
+      // Check if reporter is alive
+      if (reporter.status !== "alive") {
+        res.status(400).json({ message: "Dead players cannot report bodies" });
+        return;
+      }
+
+      // Find the dead player
+      const deadPlayer = game.players.find((p) => p.playerId === deadPlayerId);
+      if (!deadPlayer) {
+        res.status(404).json({ message: "Dead player not found" });
+        return;
+      }
+
+      // Check if the player is actually dead
+      if (deadPlayer.status !== "dead") {
+        res.status(400).json({ message: "Player is not dead" });
+        return;
+      }
+
+      // Check if both players are in the same room
+      if (reporter.currentRoom !== deadPlayer.currentRoom) {
+        res
+          .status(400)
+          .json({
+            message: "Players must be in the same room to report a body",
+          });
+        return;
+      }
+
+      // Notify all players about the body report
+      const io = getIO();
+      io.to(gameId).emit("bodyReported", {
+        reporterId,
+        reporterName: reporter.name,
+        deadPlayerId,
+        deadPlayerName: deadPlayer.name,
+        roomName: deadPlayer.currentRoom,
+      });
+
+      res.status(200).json({ message: "Body reported successfully" });
     } catch (error) {
       res.status(500).json({
         message:
@@ -975,60 +1289,3 @@ class GameController {
 }
 
 export default GameController;
-
-// Add a periodic check for sabotage deadlines
-let sabotageCheckInterval: NodeJS.Timeout | null = null;
-
-// Start the sabotage check interval when the server starts
-export const startSabotageChecker = () => {
-  if (sabotageCheckInterval) {
-    clearInterval(sabotageCheckInterval);
-  }
-
-  sabotageCheckInterval = setInterval(async () => {
-    try {
-      // Find all games with active sabotages
-      const games = await Game.find({
-        currentSabotage: { $ne: null },
-        sabotageDeadline: { $ne: null },
-        gameStatus: "in-progress",
-      });
-
-      const now = new Date();
-
-      for (const game of games) {
-        if (game.sabotageDeadline && now > game.sabotageDeadline) {
-          // Sabotage deadline passed, impostors win
-          game.gameStatus = "ended";
-          game.winner = "impostors";
-          game.endedAt = now;
-
-          // Clear sabotage
-          game.currentSabotage = null;
-          game.sabotageTaskId = null;
-          game.sabotageStartTime = null;
-          game.sabotageDeadline = null;
-
-          await game.save();
-
-          // Notify all players
-          const io = getIO();
-          io.to(game.gameId).emit("gameEnded", {
-            winner: "impostors",
-            reason: "Sabotage deadline passed",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error checking sabotage deadlines:", error);
-    }
-  }, 5000); // Check every 5 seconds
-};
-
-// Stop the sabotage checker
-export const stopSabotageChecker = () => {
-  if (sabotageCheckInterval) {
-    clearInterval(sabotageCheckInterval);
-    sabotageCheckInterval = null;
-  }
-};

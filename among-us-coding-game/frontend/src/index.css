@@ -40,3 +40,30 @@ code {
 .amongus-orange {
     background-color: #ff994b;
 }
+
+/* Map room styling */
+.map-room {
+    transition: all 0.2s ease-in-out;
+}
+
+.map-room:hover {
+    transform: scale(1.05);
+}
+
+.map-room.current {
+    box-shadow: 0 0 0 3px #4bff81;
+}
+
+.map-room.selected {
+    box-shadow: 0 0 0 3px #4b70ff;
+}
+
+.map-room.has-players {
+    box-shadow: 0 0 0 2px #ffff4b;
+}
+
+/* Connection lines between rooms */
+.room-connection {
+    stroke: #4b5563;
+    stroke-width: 2;
+}

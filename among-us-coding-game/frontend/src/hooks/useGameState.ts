@@ -5,32 +5,13 @@ import { gameAPI, taskAPI } from "../services/api";
 
 export const useGameState = (gameId: string, playerId: string) => {
   const [game, setGame] = useState<Game | null>(null);
-  const [player, setPlayer] = useState<Player | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [map, setMap] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Function to fetch player tasks
-  const fetchPlayerTasks = async () => {
-    try {
-      // Get tasks assigned to the current player from the game data
-      if (game) {
-        const playerTaskIds =
-          game.players.find((p: Player) => p.playerId === playerId)?.tasks ||
-          [];
-        // Remove duplicates from task IDs
-        const uniqueTaskIds = [...new Set(playerTaskIds)];
-        // Filter tasks that belong to this player
-        const playerTasks = game.tasks.filter((task: Task) =>
-          uniqueTaskIds.includes(task.taskId)
-        );
-        setTasks(playerTasks);
-      }
-    } catch (err) {
-      setError("Failed to process tasks");
-      console.error(err);
-    }
-  };
+  const [emergencyTask, setEmergencyTask] = useState<Task | null>(null);
+  const [sabotageDeadline, setSabotageDeadline] = useState<Date | null>(null);
 
   useEffect(() => {
     // Connect to socket
@@ -43,28 +24,22 @@ export const useGameState = (gameId: string, playerId: string) => {
     const fetchGameData = async () => {
       try {
         setLoading(true);
-        const gameResponse = await gameAPI.getGame(gameId, playerId);
+        const gameResponse = await gameAPI.getGame(gameId);
         setGame(gameResponse.data);
+        setPlayers(gameResponse.data.players);
+        setTasks(gameResponse.data.tasks);
+        setMap(gameResponse.data.map || []);
 
-        // Process player tasks from game data
-        const playerTaskIds =
-          gameResponse.data.players.find((p: Player) => p.playerId === playerId)
-            ?.tasks || [];
-        // Remove duplicates from task IDs
-        const uniqueTaskIds = [...new Set(playerTaskIds)];
-        // Filter tasks that belong to this player (including sabotage tasks for all crewmates)
-        const playerTasks = gameResponse.data.tasks.filter((task: Task) => {
-          // Include regular assigned tasks
-          if (uniqueTaskIds.includes(task.taskId)) {
-            return true;
+        // Check if there's an active emergency task
+        const activeEmergencyTask = gameResponse.data.tasks.find(
+          (task: any) => task.isEmergency && task.status === "pending"
+        );
+        if (activeEmergencyTask) {
+          setEmergencyTask(activeEmergencyTask);
+          if (gameResponse.data.sabotageDeadline) {
+            setSabotageDeadline(new Date(gameResponse.data.sabotageDeadline));
           }
-          // Include sabotage tasks (assigned to "all")
-          if (task.assignedTo === "all") {
-            return true;
-          }
-          return false;
-        });
-        setTasks(playerTasks);
+        }
       } catch (err) {
         setError("Failed to fetch game data");
         console.error(err);
@@ -75,179 +50,64 @@ export const useGameState = (gameId: string, playerId: string) => {
 
     fetchGameData();
 
-    // Set up a timer to check for sabotage deadlines
-    let sabotageTimer: NodeJS.Timeout | null = null;
-    const setupSabotageTimer = () => {
-      if (sabotageTimer) {
-        clearInterval(sabotageTimer);
-      }
-
-      sabotageTimer = setInterval(() => {
-        if (game && game.sabotageDeadline) {
-          const now = new Date();
-          const deadline = new Date(game.sabotageDeadline);
-
-          // If deadline has passed, the game should end
-          if (now > deadline) {
-            setGame((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    gameStatus: "ended",
-                    winner: "impostors",
-                  }
-                : null
-            );
-
-            if (sabotageTimer) {
-              clearInterval(sabotageTimer);
-              sabotageTimer = null;
-            }
-          }
-        }
-      }, 1000); // Check every second
-    };
-
     // Set up socket listeners
     SocketService.on("gameStarted", (data) => {
-      setGame((prev: Game | null) => {
-        const updatedGame = prev
-          ? { ...prev, ...data, gameStatus: "in-progress" }
-          : null;
-
-        // Process player tasks from updated game data
-        if (updatedGame) {
-          const playerTaskIds =
-            updatedGame.players.find((p: Player) => p.playerId === playerId)
-              ?.tasks || [];
-          // Remove duplicates from task IDs
-          const uniqueTaskIds = [...new Set(playerTaskIds)];
-          // Filter tasks that belong to this player (including sabotage tasks for all crewmates)
-          const playerTasks = updatedGame.tasks.filter((task: Task) => {
-            // Include regular assigned tasks
-            if (uniqueTaskIds.includes(task.taskId)) {
-              return true;
-            }
-            // Include sabotage tasks (assigned to "all")
-            if (task.assignedTo === "all") {
-              return true;
-            }
-            return false;
-          });
-          setTasks(playerTasks);
-        }
-
-        return updatedGame;
-      });
+      setGame((prev) =>
+        prev ? { ...prev, ...data, gameStatus: "in-progress" } : null
+      );
+      setPlayers(data.players);
+      setTasks(data.tasks);
+      setMap(data.map || []);
     });
 
     SocketService.on("taskUpdate", (data) => {
       // Update task status
-      setTasks((prev: Task[]) =>
-        prev.map((task: Task) =>
-          task.taskId === data.taskId
-            ? { ...task, status: data.status || "completed" }
-            : task
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.taskId === data.taskId ? { ...task, status: "completed" } : task
         )
+      );
+    });
+
+    SocketService.on("sabotageAlert", (data) => {
+      setGame((prev) =>
+        prev ? { ...prev, currentSabotage: data.sabotageType } : null
       );
     });
 
     SocketService.on("sabotage", (data) => {
-      setGame((prev: Game | null) => {
-        if (!prev) return null;
-
-        // Update game state with sabotage information
-        const updatedGame = {
-          ...prev,
-          currentSabotage: data.sabotageType,
-          sabotageTaskId: data.sabotageTaskId,
-          sabotageDeadline: data.sabotageDeadline
-            ? new Date(data.sabotageDeadline)
-            : null,
-          tasks: data.tasks || prev.tasks, // Update tasks if provided
-          players: data.players || prev.players, // Update players if provided
-        };
-
-        // Process tasks to include the new sabotage task
-        const playerTaskIds =
-          updatedGame.players.find((p: Player) => p.playerId === playerId)
-            ?.tasks || [];
-        // Remove duplicates from task IDs
-        const uniqueTaskIds = [...new Set(playerTaskIds)];
-        // Filter tasks that belong to this player (including sabotage tasks for all crewmates)
-        const playerTasks = updatedGame.tasks.filter((task: Task) => {
-          // Include regular assigned tasks
-          if (uniqueTaskIds.includes(task.taskId)) {
-            return true;
-          }
-          // Include sabotage tasks (assigned to "all")
-          if (task.assignedTo === "all") {
-            return true;
-          }
-          return false;
-        });
-        setTasks(playerTasks);
-
-        return updatedGame;
-      });
-
-      // Set up sabotage timer when a sabotage is initiated
-      setupSabotageTimer();
-    });
-
-    SocketService.on("taskSubmitted", (data) => {
-      // Update task status
-      setTasks((prev: Task[]) =>
-        prev.map((task: Task) =>
-          task.taskId === data.taskId
-            ? { ...task, status: data.status || "completed" }
-            : task
-        )
+      // Handle sabotage with emergency task
+      setGame((prev) =>
+        prev ? { ...prev, currentSabotage: data.sabotageType } : null
       );
 
-      // If this was a sabotage task and it was cleared, update the game state
-      if (data.sabotageCleared) {
-        setGame((prev: Game | null) =>
-          prev
-            ? {
-                ...prev,
-                currentSabotage: null,
-                sabotageTaskId: null,
-                sabotageStartTime: null,
-                sabotageDeadline: null,
-              }
-            : null
-        );
-
-        // Clear the sabotage timer
-        if (sabotageTimer) {
-          clearInterval(sabotageTimer);
-          sabotageTimer = null;
-        }
+      // Set emergency task and deadline
+      if (data.emergencyTask) {
+        setEmergencyTask(data.emergencyTask);
+        setTasks((prev) => [...prev, data.emergencyTask]);
       }
 
-      // If the game ended, update the game state
-      if (data.gameEnded) {
-        setGame((prev: Game | null) =>
-          prev
-            ? {
-                ...prev,
-                gameStatus: "ended",
-                winner: data.winner,
-              }
-            : null
-        );
-
-        // Clear the sabotage timer
-        if (sabotageTimer) {
-          clearInterval(sabotageTimer);
-          sabotageTimer = null;
-        }
+      if (data.deadline) {
+        setSabotageDeadline(new Date(data.deadline));
       }
+    });
+
+    SocketService.on("sabotageCleared", (data) => {
+      // Clear sabotage and emergency task
+      setGame((prev) => (prev ? { ...prev, currentSabotage: null } : null));
+      setEmergencyTask(null);
+      setSabotageDeadline(null);
+
+      // Update the emergency task status if it exists in tasks
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.taskId === data.taskId ? { ...task, status: "completed" } : task
+        )
+      );
     });
 
     SocketService.on("meetingCalled", (data) => {
-      setGame((prev: Game | null) =>
+      setGame((prev) =>
         prev
           ? {
               ...prev,
@@ -263,7 +123,7 @@ export const useGameState = (gameId: string, playerId: string) => {
     });
 
     SocketService.on("voteResult", (data) => {
-      setGame((prev: Game | null) => {
+      setGame((prev) => {
         if (!prev) return null;
         return {
           ...prev,
@@ -277,26 +137,66 @@ export const useGameState = (gameId: string, playerId: string) => {
     });
 
     SocketService.on("gameEnded", (data) => {
-      setGame((prev: Game | null) =>
+      setGame((prev) =>
         prev ? { ...prev, gameStatus: "ended", winner: data.winner } : null
       );
+    });
 
-      // Clear the sabotage timer
-      if (sabotageTimer) {
-        clearInterval(sabotageTimer);
-        sabotageTimer = null;
-      }
+    SocketService.on("playerMoved", (data) => {
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.playerId === data.playerId
+            ? { ...player, currentRoom: data.roomName }
+            : player
+        )
+      );
+    });
+
+    SocketService.on("playerVentMove", (data) => {
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.playerId === data.playerId
+            ? { ...player, currentRoom: data.targetRoom, isVenting: true }
+            : player
+        )
+      );
+
+      // Reset venting status after a short delay
+      setTimeout(() => {
+        setPlayers((prev) =>
+          prev.map((player) =>
+            player.playerId === data.playerId
+              ? { ...player, isVenting: false }
+              : player
+          )
+        );
+      }, 2000);
+    });
+
+    SocketService.on("playerKilled", (data) => {
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.playerId === data.targetId
+            ? { ...player, status: "dead" }
+            : player
+        )
+      );
+    });
+
+    SocketService.on("bodyReported", (data) => {
+      // Handle body report - could trigger a meeting
+      setGame((prev) => (prev ? { ...prev, gameStatus: "discussion" } : null));
+    });
+
+    SocketService.on("playerJoined", (data) => {
+      // Add new player to players list
+      // In a real implementation, you'd fetch the full player data
     });
 
     // Clean up
     return () => {
       SocketService.leaveGame(gameId, playerId);
       SocketService.disconnect();
-
-      // Clear the sabotage timer
-      if (sabotageTimer) {
-        clearInterval(sabotageTimer);
-      }
     };
   }, [gameId, playerId]);
 
@@ -309,11 +209,17 @@ export const useGameState = (gameId: string, playerId: string) => {
         answer
       );
       if (response.data.isCorrect) {
-        setTasks((prev: Task[]) =>
-          prev.map((task: Task) =>
+        setTasks((prev) =>
+          prev.map((task) =>
             task.taskId === taskId ? { ...task, status: "completed" } : task
           )
         );
+
+        // If this was the emergency task, clear it
+        if (response.data.task.isEmergency) {
+          setEmergencyTask(null);
+          setSabotageDeadline(null);
+        }
       }
       return response.data;
     } catch (err) {
@@ -353,15 +259,62 @@ export const useGameState = (gameId: string, playerId: string) => {
     }
   };
 
+  const movePlayer = async (roomName: string) => {
+    try {
+      await gameAPI.movePlayer(gameId, playerId, roomName);
+    } catch (err) {
+      setError("Failed to move player");
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const useVent = async (targetRoom: string) => {
+    try {
+      await gameAPI.useVent(gameId, playerId, targetRoom);
+    } catch (err) {
+      setError("Failed to use vent");
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const killPlayer = async (targetId: string) => {
+    try {
+      await gameAPI.killPlayer(gameId, playerId, targetId);
+    } catch (err) {
+      setError("Failed to kill player");
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const reportBody = async (deadPlayerId: string) => {
+    try {
+      await gameAPI.reportBody(gameId, playerId, deadPlayerId);
+    } catch (err) {
+      setError("Failed to report body");
+      console.error(err);
+      throw err;
+    }
+  };
+
   return {
     game,
-    player,
+    players,
     tasks,
+    map,
+    emergencyTask,
+    sabotageDeadline,
     loading,
     error,
     submitTask,
     callMeeting,
     vote,
     sabotage,
+    movePlayer,
+    useVent,
+    killPlayer,
+    reportBody,
   };
 };

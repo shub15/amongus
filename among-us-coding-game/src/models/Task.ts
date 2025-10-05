@@ -12,6 +12,8 @@ export interface ITask extends Document {
   difficulty: "easy" | "medium" | "hard"; // Difficulty level
   createdAt: Date;
   completedAt: Date | null;
+  isEmergency?: boolean; // Flag for emergency tasks
+  deadline?: Date; // Deadline for emergency tasks
 }
 
 const taskSchema = new Schema<ITask>(
@@ -37,6 +39,8 @@ const taskSchema = new Schema<ITask>(
     },
     createdAt: { type: Date, default: Date.now },
     completedAt: { type: Date, default: null },
+    isEmergency: { type: Boolean, default: false }, // Flag for emergency tasks
+    deadline: { type: Date, default: null }, // Deadline for emergency tasks
   },
   {
     timestamps: true,
@@ -48,5 +52,6 @@ taskSchema.index({ taskId: 1 });
 taskSchema.index({ assignedTo: 1 });
 taskSchema.index({ status: 1 });
 taskSchema.index({ category: 1 });
+taskSchema.index({ isEmergency: 1 }); // Index for emergency tasks
 
 export const TaskModel = model<ITask>("Task", taskSchema);

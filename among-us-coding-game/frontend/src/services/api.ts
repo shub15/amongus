@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  //   timeout: 10000, // 10 second timeout
+  timeout: 10000, // 10 second timeout
 });
 
 // Add a request interceptor to include auth token
@@ -67,11 +67,9 @@ export const gameAPI = {
   createGame: (imposterCount: number = 1) =>
     api.post("/games", { imposterCount }),
 
-  getGame: (gameId: string, playerId?: string) => {
+  getGame: (gameId: string) => {
     console.log("Fetching game with ID:", gameId);
-    return api.get(
-      `/games/${gameId}${playerId ? `?playerId=${playerId}` : ""}`
-    );
+    return api.get(`/games/${gameId}`);
   },
 
   joinGame: (gameId: string, playerId: string) =>
@@ -94,6 +92,18 @@ export const gameAPI = {
 
   sabotage: (gameId: string, playerId: string, sabotageType: string) =>
     api.post(`/games/${gameId}/sabotage`, { playerId, sabotageType }),
+
+  movePlayer: (gameId: string, playerId: string, targetRoom: string) =>
+    api.post(`/games/${gameId}/move`, { playerId, targetRoom }),
+
+  useVent: (gameId: string, playerId: string, targetRoom: string) =>
+    api.post(`/games/${gameId}/use-vent`, { playerId, targetRoom }),
+
+  killPlayer: (gameId: string, killerId: string, targetId: string) =>
+    api.post(`/games/${gameId}/kill`, { killerId, targetId }),
+
+  reportBody: (gameId: string, reporterId: string, deadPlayerId: string) =>
+    api.post(`/games/${gameId}/report-body`, { reporterId, deadPlayerId }),
 
   endGame: (gameId: string) => api.post(`/games/${gameId}/end`),
 };

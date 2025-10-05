@@ -9,7 +9,6 @@ import { setPlayerRoutes } from "./routes/playerRoutes";
 import { setTaskRoutes } from "./routes/taskRoutes";
 import SocketService from "./services/socketService";
 import connectDB from "./config/database";
-import { startSabotageChecker } from "./controllers/gameController";
 
 // Load environment variables
 dotenv.config();
@@ -58,9 +57,6 @@ const socketService = new SocketService(server);
 setGameRoutes(app);
 setPlayerRoutes(app);
 setTaskRoutes(app);
-
-// Start the sabotage checker
-startSabotageChecker();
 
 // Error handling middleware
 app.use(

@@ -10,7 +10,6 @@ import {
 } from "../middleware/validation";
 
 const router = Router();
-// Create an instance of the GameController class
 const gameController = new GameController();
 
 export const setGameRoutes = (app: Application): void => {
@@ -63,6 +62,30 @@ export const setGameRoutes = (app: Application): void => {
     authenticateToken,
     validateSabotage,
     gameController.sabotage
+  );
+  router.post(
+    "/:gameId/move",
+    validateGameId,
+    authenticateToken,
+    gameController.movePlayer
+  );
+  router.post(
+    "/:gameId/use-vent",
+    validateGameId,
+    authenticateToken,
+    gameController.useVent
+  );
+  router.post(
+    "/:gameId/kill",
+    validateGameId,
+    authenticateToken,
+    gameController.killPlayer
+  );
+  router.post(
+    "/:gameId/report-body",
+    validateGameId,
+    authenticateToken,
+    gameController.reportBody
   );
   router.post(
     "/:gameId/end",

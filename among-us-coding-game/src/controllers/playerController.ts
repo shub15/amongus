@@ -24,6 +24,9 @@ class PlayerController {
         votes: [],
         hasVoted: false,
         isImpostor: false,
+        currentRoom: "cafeteria", // Default starting room
+        lastKillTime: null,
+        isVenting: false,
       });
 
       await newPlayer.save();
@@ -45,6 +48,9 @@ class PlayerController {
             completedTasks: newPlayer.completedTasks,
             votes: newPlayer.votes,
             hasVoted: newPlayer.hasVoted,
+            currentRoom: newPlayer.currentRoom,
+            lastKillTime: newPlayer.lastKillTime,
+            isVenting: newPlayer.isVenting,
           });
           await game.save();
           console.log("Player added to game successfully");

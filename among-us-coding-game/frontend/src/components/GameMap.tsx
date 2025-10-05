@@ -6,7 +6,8 @@ interface Room {
   adjacentRooms: string[];
   ventsTo: string[];
   tasks: string[];
-  position: { x: number; y: number };
+  coordinates: number[];
+  center: { x: number; y: number };
 }
 
 interface Player {
@@ -30,6 +31,106 @@ interface GameMapProps {
   onReportBody: (deadPlayerId: string) => void;
 }
 
+const ROOM_DEFINITIONS: Record<
+  string,
+  {
+    coordinates: number[];
+    center: { x: number; y: number };
+    displayName: string;
+  }
+> = {
+  cafeteria: {
+    coordinates: [
+      900, 507, 795, 406, 791, 122, 873, 36, 1132, 39, 1252, 160, 1259, 395,
+      1147, 507,
+    ],
+    center: { x: 1020, y: 300 },
+    displayName: "Cafeteria",
+  },
+  weapons: {
+    coordinates: [
+      1334, 140, 1337, 313, 1385, 357, 1530, 359, 1535, 228, 1442, 138,
+    ],
+    center: { x: 1435, y: 250 },
+    displayName: "Weapons",
+  },
+  navigation: {
+    coordinates: [
+      1690, 409, 1686, 590, 1769, 597, 1839, 543, 1835, 458, 1767, 400,
+    ],
+    center: { x: 1760, y: 500 },
+    displayName: "Navigation",
+  },
+  o2: {
+    coordinates: [1279, 384, 1369, 392, 1373, 529, 1217, 528, 1212, 467],
+    center: { x: 1290, y: 460 },
+    displayName: "O2",
+  },
+  admin: {
+    coordinates: [1334, 559, 1334, 706, 1300, 742, 1129, 745, 1135, 559],
+    center: { x: 1230, y: 650 },
+    displayName: "Admin",
+  },
+  storage: {
+    coordinates: [
+      900, 660, 839, 724, 837, 956, 922, 1039, 1093, 1044, 1093, 660,
+    ],
+    center: { x: 970, y: 850 },
+    displayName: "Storage",
+  },
+  electric: {
+    coordinates: [
+      625, 605, 622, 832, 742, 834, 788, 787, 786, 719, 837, 656, 834, 605,
+    ],
+    center: { x: 730, y: 720 },
+    displayName: "Electric",
+  },
+  "lower engine": {
+    coordinates: [244, 681, 244, 859, 300, 895, 437, 893, 439, 680],
+    center: { x: 340, y: 780 },
+    displayName: "Lower Engine",
+  },
+  reactor: {
+    coordinates: [
+      158, 354, 80, 403, 80, 647, 147, 691, 203, 689, 203, 627, 261, 622, 263,
+      430, 200, 423, 195, 359,
+    ],
+    center: { x: 170, y: 520 },
+    displayName: "Reactor",
+  },
+  "upper engine": {
+    coordinates: [297, 164, 242, 213, 246, 385, 442, 388, 439, 164],
+    center: { x: 340, y: 270 },
+    displayName: "Upper Engine",
+  },
+  security: {
+    coordinates: [491, 398, 452, 432, 454, 620, 561, 618, 564, 430, 527, 398],
+    center: { x: 510, y: 510 },
+    displayName: "Security",
+  },
+  medbay: {
+    coordinates: [
+      588, 329, 588, 516, 627, 562, 842, 560, 839, 506, 766, 431, 764, 328,
+    ],
+    center: { x: 710, y: 430 },
+    displayName: "Medbay",
+  },
+  communication: {
+    coordinates: [
+      1110, 879, 1110, 1001, 1151, 1044, 1276, 1040, 1322, 995, 1320, 878,
+    ],
+    center: { x: 1220, y: 960 },
+    displayName: "Communication",
+  },
+  sheild: {
+    coordinates: [
+      1337, 772, 1337, 935, 1442, 931, 1529, 846, 1530, 716, 1383, 716,
+    ],
+    center: { x: 1430, y: 830 },
+    displayName: "Sheild",
+  },
+};
+
 const GameMap: React.FC<GameMapProps> = ({
   gameId,
   playerId,
@@ -49,42 +150,33 @@ const GameMap: React.FC<GameMapProps> = ({
   const [deadPlayersInRoom, setDeadPlayersInRoom] = useState<Player[]>([]);
   const [ventCooldown, setVentCooldown] = useState(0);
   const [killCooldown, setKillCooldown] = useState(0);
-  const [gridMap, setGridMap] = useState<Room[]>([]);
-
-  // Pan state
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  const [imageMap, setImageMap] = useState<Room[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Grid layout constants
-  const ROOM_WIDTH = 80;
-  const ROOM_HEIGHT = 80;
-  const GRID_SPACING = 140; // Space between grid cells
-  const GRID_COLS = 5; // Number of columns in grid
-
-  // Arrange rooms in a proper grid layout
   useEffect(() => {
     if (map.length === 0) return;
 
-    // Create a grid-based layout
-    const arrangedRooms: Room[] = map.map((room, index) => {
-      const col = index % GRID_COLS;
-      const row = Math.floor(index / GRID_COLS);
-
+    const imageMapRooms: Room[] = map.map((room) => {
+      const definition = ROOM_DEFINITIONS[room.name];
+      if (definition) {
+        return {
+          ...room,
+          coordinates: definition.coordinates,
+          center: definition.center,
+          displayName: definition.displayName,
+        };
+      }
       return {
         ...room,
-        position: {
-          x: col * GRID_SPACING + 50,
-          y: row * GRID_SPACING + 50,
-        },
+        coordinates: [],
+        center: { x: 0, y: 0 },
+        displayName: room.name,
       };
     });
 
-    setGridMap(arrangedRooms);
+    setImageMap(imageMapRooms);
   }, [map]);
 
-  // Find current player
   useEffect(() => {
     const player = players.find((p) => p.playerId === playerId);
     setCurrentPlayer(player || null);
@@ -110,7 +202,6 @@ const GameMap: React.FC<GameMapProps> = ({
     }
   }, [players, playerId, selectedRoom]);
 
-  // Update players in selected room
   useEffect(() => {
     if (selectedRoom) {
       const playersInSelectedRoom = players.filter(
@@ -120,140 +211,106 @@ const GameMap: React.FC<GameMapProps> = ({
     }
   }, [players, selectedRoom]);
 
-  // Handle mouse pan events
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) {
-      // Left mouse button
-      setIsPanning(true);
-      setStartPan({
-        x: e.clientX - panOffset.x,
-        y: e.clientY - panOffset.y,
-      });
-      if (containerRef.current) {
-        containerRef.current.style.cursor = "grabbing";
-      }
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      setPanOffset({
-        x: e.clientX - startPan.x,
-        y: e.clientY - startPan.y,
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsPanning(false);
-    if (containerRef.current) {
-      containerRef.current.style.cursor = "grab";
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setIsPanning(false);
-    if (containerRef.current) {
-      containerRef.current.style.cursor = "grab";
-    }
-  };
-
-  // Handle room click
   const handleRoomClick = (roomName: string) => {
     setSelectedRoom(roomName);
   };
 
-  // Handle vent usage
   const handleUseVent = () => {
     if (selectedRoom && currentPlayer) {
-      const currentRoom = gridMap.find((r) => r.name === selectedRoom);
+      const currentRoom = imageMap.find((r) => r.name === selectedRoom);
       if (currentRoom && currentRoom.ventsTo.length > 0) {
         onUseVent(currentRoom.ventsTo[0]);
       }
     }
   };
 
-  // Handle kill action
   const handleKill = (targetId: string) => {
     onKillPlayer(targetId);
   };
 
-  // Handle report body
   const handleReportBody = (deadPlayerId: string) => {
     onReportBody(deadPlayerId);
   };
 
-  // Render room on map
-  const renderRoom = (room: Room) => {
-    const isCurrentRoom = currentPlayer?.currentRoom === room.name;
-    const hasPlayers = players.some((p) => p.currentRoom === room.name);
-    const isSelected = selectedRoom === room.name;
+  const renderPlayerOnMap = (player: Player) => {
+    const room = imageMap.find((r) => r.name === player.currentRoom);
+    if (!room) return null;
+
+    const playerX = room.center.x;
+    const playerY = room.center.y;
 
     return (
-      <div
-        key={room.name}
-        className={`absolute w-20 h-20 rounded-lg cursor-pointer flex items-center justify-center text-xs text-center p-2 border-2 transition-all duration-200 ${
-          isSelected
-            ? "bg-blue-500 border-blue-300 text-white"
-            : isCurrentRoom
-            ? "bg-green-500 border-green-300 text-white"
-            : hasPlayers
-            ? "bg-yellow-500 border-yellow-300 text-black"
-            : "bg-gray-700 border-gray-500 text-white"
-        }`}
-        style={{
-          left: `${room.position.x}px`,
-          top: `${room.position.y}px`,
-        }}
-        onClick={() => handleRoomClick(room.name)}
-      >
-        <div className="flex flex-col items-center">
-          <span className="font-bold truncate w-full">{room.displayName}</span>
-          {isCurrentRoom && <span className="text-xs mt-1">YOU</span>}
-        </div>
-      </div>
-    );
-  };
-
-  // Render player in room details
-  const renderPlayer = (player: Player) => {
-    const isMe = player.playerId === playerId;
-
-    return (
-      <div
-        key={player.playerId}
-        className={`p-2 rounded mb-2 flex items-center ${
-          player.status === "dead"
-            ? "bg-red-900"
-            : player.role === "imposter"
-            ? "bg-red-700"
-            : "bg-blue-700"
-        }`}
-      >
-        <div
-          className={`w-3 h-3 rounded-full mr-2 ${
-            player.status === "alive" ? "bg-green-400" : "bg-gray-400"
-          }`}
-        ></div>
-        <span className={isMe ? "font-bold" : ""}>
-          {player.name} {isMe && "(You)"}
-        </span>
-        {player.isVenting && (
-          <span className="ml-2 text-xs bg-purple-500 px-1 rounded">
-            VENTING
-          </span>
-        )}
+      <g key={player.playerId}>
+        <title>{`${player.name} (${player.role})`}</title>
+        <text
+          x={playerX}
+          y={playerY}
+          textAnchor="middle"
+          fill={
+            player.role === "imposter"
+              ? "#ef4444"
+              : player.role === "crewmate"
+              ? "#3b82f6"
+              : "#6b7280"
+          }
+          fontSize="14"
+          fontWeight="bold"
+          pointerEvents="none"
+        >
+          {player.name}
+        </text>
         {player.status === "dead" && (
-          <span className="ml-2 text-xs bg-gray-500 px-1 rounded">DEAD</span>
+          <text
+            x={playerX}
+            y={playerY + 15}
+            textAnchor="middle"
+            fill="#9ca3af"
+            fontSize="10"
+            pointerEvents="none"
+          >
+            (DEAD)
+          </text>
         )}
-      </div>
+        {player.isVenting && (
+          <text
+            x={playerX}
+            y={playerY + 30}
+            textAnchor="middle"
+            fill="#a855f7"
+            fontSize="10"
+            pointerEvents="none"
+          >
+            (VENTING)
+          </text>
+        )}
+      </g>
     );
   };
 
-  // Get direction for positioning arrows
+  const getAdjacentRooms = () => {
+    if (
+      !currentPlayer ||
+      !selectedRoom ||
+      currentPlayer.currentRoom !== selectedRoom
+    ) {
+      return [];
+    }
+
+    const currentRoom = imageMap.find((r) => r.name === selectedRoom);
+    if (!currentRoom) {
+      return [];
+    }
+
+    return currentRoom.adjacentRooms
+      .map((roomName: string) =>
+        imageMap.find((r: Room) => r.name === roomName)
+      )
+      .filter((room): room is Room => room !== undefined);
+  };
+
   const getDirection = (fromRoom: Room, toRoom: Room) => {
-    const dx = toRoom.position.x - fromRoom.position.x;
-    const dy = toRoom.position.y - fromRoom.position.y;
+    const dx = toRoom.center.x - fromRoom.center.x;
+    const dy = toRoom.center.y - fromRoom.center.y;
 
     if (Math.abs(dx) > Math.abs(dy)) {
       return dx > 0 ? "right" : "left";
@@ -262,7 +319,6 @@ const GameMap: React.FC<GameMapProps> = ({
     }
   };
 
-  // Render movement arrows around the selected room
   const renderMovementArrows = () => {
     if (
       !selectedRoom ||
@@ -273,7 +329,7 @@ const GameMap: React.FC<GameMapProps> = ({
       return null;
     }
 
-    const currentRoom = gridMap.find((r) => r.name === selectedRoom);
+    const currentRoom = imageMap.find((r) => r.name === selectedRoom);
     if (!currentRoom) return null;
 
     const adjacentRooms = getAdjacentRooms();
@@ -281,185 +337,126 @@ const GameMap: React.FC<GameMapProps> = ({
 
     return adjacentRooms.map((room) => {
       const direction = getDirection(currentRoom, room);
-      let arrowStyle = {};
-
-      // Position arrows around the room based on direction
-      // Adjust for panning by using the same positioning logic
-      switch (direction) {
-        case "up":
-          arrowStyle = {
-            left: `${currentRoom.position.x + ROOM_WIDTH / 2 - 15}px`,
-            top: `${currentRoom.position.y - 40}px`,
-          };
-          break;
-        case "down":
-          arrowStyle = {
-            left: `${currentRoom.position.x + ROOM_WIDTH / 2 - 15}px`,
-            top: `${currentRoom.position.y + ROOM_HEIGHT + 10}px`,
-          };
-          break;
-        case "left":
-          arrowStyle = {
-            left: `${currentRoom.position.x - 40}px`,
-            top: `${currentRoom.position.y + ROOM_HEIGHT / 2 - 15}px`,
-          };
-          break;
-        case "right":
-          arrowStyle = {
-            left: `${currentRoom.position.x + ROOM_WIDTH + 10}px`,
-            top: `${currentRoom.position.y + ROOM_HEIGHT / 2 - 15}px`,
-          };
-          break;
-      }
+      const arrowX = (currentRoom.center.x + room.center.x) / 2;
+      const arrowY = (currentRoom.center.y + room.center.y) / 2;
 
       return (
-        <button
+        <g
           key={`arrow-${room.name}`}
           onClick={() => onMoveToRoom(room.name)}
-          className="absolute w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110"
-          style={arrowStyle}
-          title={`Move to ${room.displayName}`}
+          className="cursor-pointer"
+          style={{ pointerEvents: "all" }}
         >
-          <svg
-            className="w-5 h-5 text-white"
-            style={{
-              transform: `rotate(${
-                direction === "up"
-                  ? "0deg"
-                  : direction === "right"
-                  ? "90deg"
-                  : direction === "down"
-                  ? "180deg"
-                  : "270deg"
-              })`,
-            }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+          <circle
+            cx={arrowX}
+            cy={arrowY}
+            r="20"
+            fill="#3b82f6"
+            stroke="#1d4ed8"
+            strokeWidth="2"
+          />
+          <text
+            x={arrowX}
+            y={arrowY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="white"
+            fontSize="20"
+            fontWeight="bold"
+            pointerEvents="none"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M5 15l7-7 7 7"
-            />
-          </svg>
-        </button>
+            {direction === "up"
+              ? "↑"
+              : direction === "down"
+              ? "↓"
+              : direction === "left"
+              ? "←"
+              : "→"}
+          </text>
+          <title>Move to {room.displayName}</title>
+        </g>
       );
     });
   };
 
-  // Get adjacent rooms for current player's room
-  const getAdjacentRooms = () => {
-    if (
-      !currentPlayer ||
-      !selectedRoom ||
-      currentPlayer.currentRoom !== selectedRoom
-    ) {
-      return [];
-    }
-
-    const currentRoom = gridMap.find((r) => r.name === selectedRoom);
-    if (!currentRoom) {
-      return [];
-    }
-
-    return currentRoom.adjacentRooms
-      .map((roomName: string) => gridMap.find((r: Room) => r.name === roomName))
-      .filter((room): room is Room => room !== undefined);
-  };
-
   return (
     <div className="bg-slate-800 rounded-lg p-4">
-      <h2 className="text-xl font-bold mb-4">
-        Ship Map{" "}
-        <span className="text-sm text-gray-400">(Click and drag to pan)</span>
-      </h2>
+      <h2 className="text-xl font-bold mb-4">Ship Map</h2>
 
-      {/* Map visualization with pan */}
       <div
         ref={containerRef}
-        className={`relative bg-slate-900 rounded-lg p-4 mb-4 overflow-hidden border-2 border-slate-700 ${
-          isPanning ? "cursor-grabbing" : "cursor-grab"
-        }`}
-        style={{ height: "500px" }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+        className="relative bg-slate-900 rounded-lg mb-4 overflow-hidden border-2 border-slate-700"
+        style={{ height: "600px" }}
       >
-        {/* Panning container */}
         <div
           style={{
-            transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
-            transition: isPanning ? "none" : "transform 0.1s ease-out",
             position: "relative",
             width: "100%",
             height: "100%",
           }}
         >
-          {/* Connection lines - rendered first so they appear behind rooms */}
+          {/* Among Us Map Image */}
+          <img
+            src="/images/map.png"
+            alt="Among Us Map"
+            className="absolute top-0 left-0 w-full h-full object-contain"
+            style={{ zIndex: 1, pointerEvents: "none" }}
+          />
+
+          {/* SVG overlay for highlights, players, and interactive elements */}
           <svg
-            className="absolute top-0 left-0 pointer-events-none"
-            style={{
-              width: `${GRID_COLS * GRID_SPACING + 200}px`,
-              height: `${
-                Math.ceil(gridMap.length / GRID_COLS) * GRID_SPACING + 200
-              }px`,
-              zIndex: 1,
-            }}
+            className="absolute top-0 left-0 w-full h-full"
+            viewBox="0 0 1920 1080"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ zIndex: 2, pointerEvents: "none" }}
           >
-            {/* Adjacent room connections */}
-            {gridMap.map((room) => {
-              return room.adjacentRooms.map((adjacentRoomName) => {
-                const adjacentRoom = gridMap.find(
-                  (r) => r.name === adjacentRoomName
-                );
-                if (adjacentRoom) {
-                  return (
-                    <line
-                      key={`adjacent-${room.name}-${adjacentRoomName}`}
-                      x1={room.position.x + ROOM_WIDTH / 2}
-                      y1={room.position.y + ROOM_HEIGHT / 2}
-                      x2={adjacentRoom.position.x + ROOM_WIDTH / 2}
-                      y2={adjacentRoom.position.y + ROOM_HEIGHT / 2}
-                      stroke="#6b7280"
-                      strokeWidth="2"
-                      strokeDasharray="5,5"
-                    />
-                  );
-                }
-                return null;
-              });
-            })}
+            {/* Clickable room areas - render first (behind) */}
+            {imageMap.map((room) => (
+              <polygon
+                key={`area-${room.name}`}
+                points={room.coordinates.join(",")}
+                fill="transparent"
+                stroke="transparent"
+                strokeWidth="0"
+                onClick={() => handleRoomClick(room.name)}
+                style={{
+                  pointerEvents: "all",
+                  cursor: "pointer",
+                }}
+              />
+            ))}
 
-            {/* Vent connections */}
-            {gridMap.map((room) => {
-              return room.ventsTo.map((ventRoomName) => {
-                const ventRoom = gridMap.find((r) => r.name === ventRoomName);
-                if (ventRoom) {
-                  return (
-                    <line
-                      key={`vent-${room.name}-${ventRoomName}`}
-                      x1={room.position.x + ROOM_WIDTH / 2}
-                      y1={room.position.y + ROOM_HEIGHT / 2}
-                      x2={ventRoom.position.x + ROOM_WIDTH / 2}
-                      y2={ventRoom.position.y + ROOM_HEIGHT / 2}
-                      stroke="#c084fc"
-                      strokeWidth="2"
-                    />
-                  );
+            {/* Highlight selected room or current player's room */}
+            {currentPlayer && currentPlayer.currentRoom === "cafeteria" && (
+              <polygon
+                points={ROOM_DEFINITIONS["cafeteria"].coordinates.join(",")}
+                fill="rgba(59, 130, 246, 0.3)"
+                stroke="#3b82f6"
+                strokeWidth="3"
+                strokeDasharray="5,5"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+
+            {/* Highlight selected room if different from current */}
+            {selectedRoom && selectedRoom !== currentPlayer?.currentRoom && (
+              <polygon
+                points={
+                  ROOM_DEFINITIONS[selectedRoom]?.coordinates.join(",") || ""
                 }
-                return null;
-              });
-            })}
+                fill="rgba(34, 197, 94, 0.2)"
+                stroke="#22c55e"
+                strokeWidth="3"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+
+            {/* Players - render on top */}
+            {players.map(renderPlayerOnMap)}
+
+            {/* Movement arrows - render last (on top) */}
+            {renderMovementArrows()}
           </svg>
-
-          {/* Rooms */}
-          {gridMap.map(renderRoom)}
-
-          {/* Movement arrows */}
-          {renderMovementArrows()}
         </div>
       </div>
 
@@ -467,23 +464,55 @@ const GameMap: React.FC<GameMapProps> = ({
       {selectedRoom && (
         <div className="bg-slate-700 rounded-lg p-4">
           <h3 className="text-lg font-bold mb-2">
-            {gridMap.find((r) => r.name === selectedRoom)?.displayName}
+            {imageMap.find((r) => r.name === selectedRoom)?.displayName}
           </h3>
 
-          {/* Players in room */}
           <div className="mb-4">
             <h4 className="font-bold mb-2">Players in Room:</h4>
             {playersInRoom.length > 0 ? (
-              playersInRoom.map(renderPlayer)
+              playersInRoom.map((player) => {
+                const isMe = player.playerId === playerId;
+                return (
+                  <div
+                    key={player.playerId}
+                    className={`p-2 rounded mb-2 flex items-center ${
+                      player.status === "dead"
+                        ? "bg-red-900"
+                        : player.role === "imposter"
+                        ? "bg-red-700"
+                        : "bg-blue-700"
+                    }`}
+                  >
+                    <div
+                      className={`w-3 h-3 rounded-full mr-2 ${
+                        player.status === "alive"
+                          ? "bg-green-400"
+                          : "bg-gray-400"
+                      }`}
+                    ></div>
+                    <span className={isMe ? "font-bold" : ""}>
+                      {player.name} {isMe && "(You)"}
+                    </span>
+                    {player.isVenting && (
+                      <span className="ml-2 text-xs bg-purple-500 px-1 rounded">
+                        VENTING
+                      </span>
+                    )}
+                    {player.status === "dead" && (
+                      <span className="ml-2 text-xs bg-gray-500 px-1 rounded">
+                        DEAD
+                      </span>
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <p className="text-gray-400">No players in this room</p>
             )}
           </div>
 
-          {/* Actions panel */}
           {currentPlayer && currentPlayer.status === "alive" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {/* Vent button (impostors only) */}
               {currentPlayer.role === "imposter" && (
                 <button
                   onClick={handleUseVent}
@@ -511,7 +540,6 @@ const GameMap: React.FC<GameMapProps> = ({
                 </button>
               )}
 
-              {/* Kill button (impostors only) */}
               {canKill && currentPlayer.role === "imposter" && (
                 <button
                   onClick={() => {
@@ -546,7 +574,6 @@ const GameMap: React.FC<GameMapProps> = ({
                 </button>
               )}
 
-              {/* Report button (crewmates only) */}
               {canReport && currentPlayer.role === "crewmate" && (
                 <button
                   onClick={() => {
@@ -575,7 +602,6 @@ const GameMap: React.FC<GameMapProps> = ({
             </div>
           )}
 
-          {/* Dead players in room */}
           {deadPlayersInRoom.length > 0 && (
             <div className="mt-4">
               <h4 className="font-bold mb-2">Dead Players:</h4>

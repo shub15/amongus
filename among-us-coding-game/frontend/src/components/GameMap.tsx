@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 interface Room {
   name: string;
@@ -78,14 +79,14 @@ const ROOM_DEFINITIONS: Record<
     center: { x: 970, y: 850 },
     displayName: "Storage",
   },
-  electric: {
+  electrical: {
     coordinates: [
       625, 605, 622, 832, 742, 834, 788, 787, 786, 719, 837, 656, 834, 605,
     ],
     center: { x: 730, y: 720 },
-    displayName: "Electric",
+    displayName: "Electrical",
   },
-  "lower engine": {
+  lower_engine: {
     coordinates: [244, 681, 244, 859, 300, 895, 437, 893, 439, 680],
     center: { x: 340, y: 780 },
     displayName: "Lower Engine",
@@ -98,7 +99,7 @@ const ROOM_DEFINITIONS: Record<
     center: { x: 170, y: 520 },
     displayName: "Reactor",
   },
-  "upper engine": {
+  upper_engine: {
     coordinates: [297, 164, 242, 213, 246, 385, 442, 388, 439, 164],
     center: { x: 340, y: 270 },
     displayName: "Upper Engine",
@@ -115,19 +116,19 @@ const ROOM_DEFINITIONS: Record<
     center: { x: 710, y: 430 },
     displayName: "Medbay",
   },
-  communication: {
+  communications: {
     coordinates: [
       1110, 879, 1110, 1001, 1151, 1044, 1276, 1040, 1322, 995, 1320, 878,
     ],
     center: { x: 1220, y: 960 },
     displayName: "Communication",
   },
-  sheild: {
+  shields: {
     coordinates: [
       1337, 772, 1337, 935, 1442, 931, 1529, 846, 1530, 716, 1383, 716,
     ],
     center: { x: 1430, y: 830 },
-    displayName: "Sheild",
+    displayName: "Shields",
   },
 };
 
@@ -233,32 +234,63 @@ const GameMap: React.FC<GameMapProps> = ({
   };
 
   const renderPlayerOnMap = (player: Player) => {
+    const size = 2;
     const room = imageMap.find((r) => r.name === player.currentRoom);
-    if (!room) return null;
+    if (!room || !room.center) return null;
 
     const playerX = room.center.x;
     const playerY = room.center.y;
+    const isCurrentPlayer = player.playerId === playerId;
+
+    if (playerX < 0 || playerX > 1920 || playerY < 0 || playerY > 1080) {
+      console.warn(
+        `Player ${player.name} is outside viewBox bounds at (${playerX}, ${playerY})`
+      );
+      return null;
+    }
 
     return (
       <g key={player.playerId}>
         <title>{`${player.name} (${player.role})`}</title>
-        <text
-          x={playerX}
-          y={playerY}
-          textAnchor="middle"
-          fill={
-            player.role === "imposter"
-              ? "#ef4444"
-              : player.role === "crewmate"
-              ? "#3b82f6"
-              : "#6b7280"
-          }
-          fontSize="14"
-          fontWeight="bold"
-          pointerEvents="none"
-        >
-          {player.name}
-        </text>
+
+        {isCurrentPlayer && (
+          <polygon
+            points={`${playerX},${playerY - 25 * size} ${playerX - 12 * size},${
+              playerY - 5 * size
+            } ${playerX + 12 * size},${playerY - 5 * size}`}
+            fill={
+              player.role === "imposter"
+                ? "#ef4444"
+                : player.role === "crewmate"
+                ? "#fbbf24"
+                : "#6b7280"
+            }
+            stroke="#ffffff"
+            strokeWidth="5"
+            pointerEvents="none"
+          />
+        )}
+
+        {/* <text
+          x={playerX}
+          y={playerY}
+          textAnchor="middle"
+          fill={
+            player.role === "imposter"
+              ? "#ef4444"
+              : player.role === "crewmate"
+              ? "#3b82f6"
+              : "#6b7280"
+          }
+          stroke="#ffffff"
+          strokeWidth="1"
+          fontSize="100"
+          fontWeight="bold"
+          pointerEvents="none"
+        >
+          {player.name}
+        </text> */}
+
         {player.status === "dead" && (
           <text
             x={playerX}
@@ -350,7 +382,7 @@ const GameMap: React.FC<GameMapProps> = ({
           <circle
             cx={arrowX}
             cy={arrowY}
-            r="20"
+            r="50"
             fill="#3b82f6"
             stroke="#1d4ed8"
             strokeWidth="2"
@@ -361,7 +393,7 @@ const GameMap: React.FC<GameMapProps> = ({
             textAnchor="middle"
             dominantBaseline="middle"
             fill="white"
-            fontSize="20"
+            fontSize="50"
             fontWeight="bold"
             pointerEvents="none"
           >
@@ -383,86 +415,179 @@ const GameMap: React.FC<GameMapProps> = ({
     <div className="bg-slate-800 rounded-lg p-4">
       <h2 className="text-xl font-bold mb-4">Ship Map</h2>
 
-      <div
-        ref={containerRef}
-        className="relative bg-slate-900 rounded-lg mb-4 overflow-hidden border-2 border-slate-700"
-        style={{ height: "600px" }}
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.5}
+        maxScale={3}
+        centerOnInit={true}
+        wheel={{ step: 0.1 }}
+        panning={{ disabled: false }}
+        doubleClick={{ disabled: false }}
       >
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          {/* Among Us Map Image */}
-          <img
-            src="/images/map.png"
-            alt="Among Us Map"
-            className="absolute top-0 left-0 w-full h-full object-contain"
-            style={{ zIndex: 1, pointerEvents: "none" }}
-          />
+        {({ zoomIn, zoomOut, resetTransform }) => (
+          <>
+            {/* Zoom Controls */}
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => zoomIn()}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"
+                  ></path>
+                </svg>
+                Zoom In
+              </button>
+              <button
+                onClick={() => zoomOut()}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"
+                  ></path>
+                </svg>
+                Zoom Out
+              </button>
+              <button
+                onClick={() => resetTransform()}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  ></path>
+                </svg>
+                Reset
+              </button>
+            </div>
 
-          {/* SVG overlay for highlights, players, and interactive elements */}
-          <svg
-            className="absolute top-0 left-0 w-full h-full"
-            viewBox="0 0 1920 1080"
-            preserveAspectRatio="xMidYMid meet"
-            style={{ zIndex: 2, pointerEvents: "none" }}
-          >
-            {/* Clickable room areas - render first (behind) */}
-            {imageMap.map((room) => (
-              <polygon
-                key={`area-${room.name}`}
-                points={room.coordinates.join(",")}
-                fill="transparent"
-                stroke="transparent"
-                strokeWidth="0"
-                onClick={() => handleRoomClick(room.name)}
+            <TransformComponent
+              wrapperStyle={{
+                width: "100%",
+                height: "800px",
+                maxHeight: "calc(100vh - 200px)",
+              }}
+              contentStyle={{
+                width: "100%",
+                height: "100%",
+              }}
+            >
+              {/* <div
+                ref={containerRef}
+                className="relative bg-slate-900 rounded-lg border-2 border-slate-700"
+                style={{ width: "100%", height: "800px" }}
+              > */}
+              <div
                 style={{
-                  pointerEvents: "all",
-                  cursor: "pointer",
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
                 }}
-              />
-            ))}
+              >
+                {/* Among Us Map Image */}
+                <img
+                  src="/images/map.png"
+                  alt="Among Us Map"
+                  className="absolute top-0 left-0 w-full h-full object-contain"
+                  style={{ zIndex: 1, pointerEvents: "none" }}
+                />
 
-            {/* Highlight selected room or current player's room */}
-            {currentPlayer && currentPlayer.currentRoom === "cafeteria" && (
-              <polygon
-                points={ROOM_DEFINITIONS["cafeteria"].coordinates.join(",")}
-                fill="rgba(59, 130, 246, 0.3)"
-                stroke="#3b82f6"
-                strokeWidth="3"
-                strokeDasharray="5,5"
-                style={{ pointerEvents: "none" }}
-              />
-            )}
+                {/* SVG overlay for highlights, players, and interactive elements */}
+                <svg
+                  className="absolute top-0 left-0 w-full h-full"
+                  viewBox="0 0 1920 1080"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ zIndex: 2, pointerEvents: "none" }}
+                >
+                  {/* Clickable room areas */}
+                  {imageMap.map((room) => (
+                    <polygon
+                      key={`area-${room.name}`}
+                      points={room.coordinates.join(",")}
+                      fill="transparent"
+                      stroke="transparent"
+                      strokeWidth="0"
+                      onClick={() => handleRoomClick(room.name)}
+                      style={{
+                        pointerEvents: "all",
+                        cursor: "pointer",
+                      }}
+                    />
+                  ))}
 
-            {/* Highlight selected room if different from current */}
-            {selectedRoom && selectedRoom !== currentPlayer?.currentRoom && (
-              <polygon
-                points={
-                  ROOM_DEFINITIONS[selectedRoom]?.coordinates.join(",") || ""
-                }
-                fill="rgba(34, 197, 94, 0.2)"
-                stroke="#22c55e"
-                strokeWidth="3"
-                style={{ pointerEvents: "none" }}
-              />
-            )}
+                  {/* Highlight current player's room */}
+                  {currentPlayer &&
+                    currentPlayer.currentRoom &&
+                    ROOM_DEFINITIONS[currentPlayer.currentRoom] && (
+                      <polygon
+                        points={ROOM_DEFINITIONS[
+                          currentPlayer.currentRoom
+                        ].coordinates.join(",")}
+                        fill="rgba(59, 130, 246, 0.3)"
+                        stroke="#3b82f6"
+                        strokeWidth="3"
+                        strokeDasharray="5,5"
+                        style={{ pointerEvents: "none" }}
+                      />
+                    )}
 
-            {/* Players - render on top */}
-            {players.map(renderPlayerOnMap)}
+                  {/* Highlight selected room */}
+                  {selectedRoom &&
+                    selectedRoom !== currentPlayer?.currentRoom &&
+                    ROOM_DEFINITIONS[selectedRoom] && (
+                      <polygon
+                        points={ROOM_DEFINITIONS[selectedRoom].coordinates.join(
+                          ","
+                        )}
+                        fill="rgba(34, 197, 94, 0.2)"
+                        stroke="#22c55e"
+                        strokeWidth="3"
+                        style={{ pointerEvents: "none" }}
+                      />
+                    )}
 
-            {/* Movement arrows - render last (on top) */}
-            {renderMovementArrows()}
-          </svg>
-        </div>
-      </div>
+                  {/* Players */}
+                  {players.map(renderPlayerOnMap)}
+
+                  {/* Movement arrows */}
+                  {renderMovementArrows()}
+                </svg>
+              </div>
+              {/* </div> */}
+            </TransformComponent>
+          </>
+        )}
+      </TransformWrapper>
 
       {/* Room details panel */}
       {selectedRoom && (
-        <div className="bg-slate-700 rounded-lg p-4">
+        <div className="bg-slate-700 rounded-lg p-4 mt-4">
           <h3 className="text-lg font-bold mb-2">
             {imageMap.find((r) => r.name === selectedRoom)?.displayName}
           </h3>

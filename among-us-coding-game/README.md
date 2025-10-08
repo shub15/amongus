@@ -11,6 +11,7 @@ A tech-based multiplayer game where players receive coding-related tasks on thei
 - **Real-time Communication**: WebSocket-based real-time updates
 - **Admin Dashboard**: Monitor games and assign roles
 - **Mobile-friendly UI**: Responsive design for smartphones
+- **LAN Support**: Play with friends on the same local network
 
 ## Tech Stack
 
@@ -35,14 +36,14 @@ A tech-based multiplayer game where players receive coding-related tasks on thei
 among-us-coding-game/
 ├── src/
 │   ├── controllers/     # Request handlers
-│   ├── models/         # Database models
-│   ├── routes/         # API routes
-│   ├── services/       # Business logic
-│   ├── middleware/     # Authentication and validation
-│   ├── config/         # Configuration files
-│   └── tests/          # Unit and integration tests
-├── frontend/           # React frontend application
-└── README.md           # This file
+│   ├── models/          # Database models
+│   ├── routes/          # API routes
+│   ├── services/        # Business logic
+│   ├── middleware/      # Authentication and validation
+│   ├── config/          # Configuration files
+│   └── tests/           # Unit and integration tests
+├── frontend/            # React frontend application
+└── README.md            # This file
 ```
 
 ## Getting Started
@@ -100,6 +101,42 @@ among-us-coding-game/
    ```bash
    npm run dev
    ```
+
+## LAN Setup
+
+To play the game with friends on the same local network:
+
+### Quick Start (Windows)
+
+1. Run the provided batch script:
+   ```bash
+   start-lan.bat
+   ```
+
+### Manual Setup
+
+1. Find your server IP address:
+
+   ```bash
+   npm run get-ip
+   ```
+
+2. Start the backend server with LAN access:
+
+   ```bash
+   npm run dev:lan
+   ```
+
+3. In a separate terminal, start the frontend server with LAN access:
+
+   ```bash
+   cd frontend
+   npm run dev:lan
+   ```
+
+4. Other players can access the game at `http://YOUR_SERVER_IP:3001`
+
+For detailed instructions, see [LAN_SETUP.md](LAN_SETUP.md)
 
 ## API Endpoints
 

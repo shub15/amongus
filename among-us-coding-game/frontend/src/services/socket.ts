@@ -1,7 +1,8 @@
 import { io, Socket } from "socket.io-client";
 
-// Updated to use the correct backend URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+// Updated to use the correct backend URL with environment variable support
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || `http://${window.location.hostname}:3000`;
 
 class SocketService {
   private socket: Socket | null = null;

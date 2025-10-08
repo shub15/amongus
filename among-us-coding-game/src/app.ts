@@ -20,12 +20,25 @@ const server = http.createServer(app);
 server.keepAliveTimeout = 65000; // Ensure keep alive timeout is greater than load balancer timeout
 server.headersTimeout = 66000; // Ensure headers timeout is greater than keep alive timeout
 
-// CORS configuration for REST API
+// Get the host IP for LAN access
+const HOST = process.env.HOST || "0.0.0.0"; // Listen on all interfaces for LAN access
+const PORT = parseInt(process.env.PORT || "3000", 10);
+
+// CORS configuration for REST API - allow LAN access
 const corsOptions = {
   origin: process.env.CLIENT_URL || [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    // Allow any LAN IP access
+    /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/, // 192.168.x.x range
+    /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/, // 10.x.x.x range
+    /^http:\/\/172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+(:\d+)?$/, // 172.16.x.x - 172.31.x.x range
+    // Local network IPs
+    `http://${HOST}:${PORT}`,
+    `http://localhost:${PORT}`,
+    `http://127.0.0.1:${PORT}`,
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
@@ -50,8 +63,14 @@ app.get("/health", (req, res) => {
 // Initialize database connection
 connectDB();
 
-// WebSocket setup
+// WebSocket setup with LAN access configuration
 const socketService = new SocketService(server);
+
+// Configure Socket.IO to work with LAN
+const io = socketService.getIO();
+io.engine.generateId = (req) => {
+  return require("crypto").randomBytes(20).toString("hex"); // Generate random ID
+};
 
 // Routes
 setGameRoutes(app);
@@ -76,8 +95,6 @@ app.use("*", (req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-const PORT = process.env.PORT || 3000;
-
 // Graceful shutdown
 process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully");
@@ -87,9 +104,19 @@ process.on("SIGTERM", () => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://${HOST}:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+
+  // Get the actual IP address for LAN access
+  const interfaces = require("os").networkInterfaces();
+  Object.keys(interfaces).forEach((interfaceName) => {
+    interfaces[interfaceName].forEach((interfaceData: any) => {
+      if (interfaceData.family === "IPv4" && !interfaceData.internal) {
+        console.log(`LAN Access: http://${interfaceData.address}:${PORT}`);
+      }
+    });
+  });
 });
 
 export { server, socketService };

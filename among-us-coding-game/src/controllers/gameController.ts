@@ -821,16 +821,24 @@ class GameController {
       }
 
       // Assign roles
+      console.log("Assigning roles to players");
       this.assignRoles(game);
+      console.log("Roles assigned successfully");
 
       // Create tasks for players
+      console.log(`Creating tasks for ${game.players.length} players`);
       await this.createTasksForPlayers(game);
+      console.log(`Finished creating tasks`);
 
       // Update game status
+      console.log("Updating game status");
       game.gameStatus = "in-progress";
       game.startedAt = new Date();
+      console.log("Game status updated");
 
+      console.log("Saving game to database");
       await game.save();
+      console.log(`Game saved successfully`);
 
       // Notify all players that the game has started
       const io = getIO();
@@ -842,6 +850,7 @@ class GameController {
 
       res.status(200).json({ message: "Game started successfully", game });
     } catch (error) {
+      console.error("Error starting game:", error);
       res.status(500).json({
         message:
           error instanceof Error ? error.message : "An unknown error occurred",
@@ -926,14 +935,16 @@ class GameController {
     );
 
     for (const player of crewmates) {
-      // Assign 10 random tasks to each crewmate
-      for (let i = 0; i < 30; i++) {
+      // Assign 5 random tasks to each crewmate (reduced from 10 to prevent document size issues)
+      for (let i = 0; i < 10; i++) {
         const randomQuestion =
           TECHNICAL_QUESTIONS[
             Math.floor(Math.random() * TECHNICAL_QUESTIONS.length)
           ];
 
-        const taskId = `task_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const taskId = `task_${Date.now()}_${Math.floor(
+          Math.random() * 1000000
+        )}_${i}`;
 
         // Assign task to a random room
         const randomRoom =
@@ -953,13 +964,18 @@ class GameController {
 
         tasks.push(task);
 
-        // Add task ID to player's tasks
-        player.tasks.push(taskId);
+        // Add task ID to player's tasks (avoiding duplicates)
+        if (!player.tasks.includes(taskId)) {
+          player.tasks.push(taskId);
+        }
 
-        // Add task ID to the room's tasks
+        // Add task ID to the room's tasks (avoiding duplicates)
         const room = game.map.find((r: any) => r.name === randomRoom);
         if (room) {
-          room.tasks.push(taskId);
+          // Check if task ID already exists in room tasks to prevent duplicates
+          if (!room.tasks.includes(taskId)) {
+            room.tasks.push(taskId);
+          }
         }
 
         // Update in the game players array
@@ -967,7 +983,10 @@ class GameController {
           (p: any) => p.playerId === player.playerId
         );
         if (gamePlayer) {
-          gamePlayer.tasks.push(taskId);
+          // Check if task ID already exists in player tasks to prevent duplicates
+          if (!gamePlayer.tasks.includes(taskId)) {
+            gamePlayer.tasks.push(taskId);
+          }
         }
       }
     }
@@ -978,16 +997,16 @@ class GameController {
     );
 
     for (const player of impostors) {
-      // Assign 10 normal tasks to each impostor
-      for (let i = 0; i < 30; i++) {
+      // Assign 3 normal tasks to each impostor (reduced from 10 to prevent document size issues)
+      for (let i = 0; i < 3; i++) {
         const randomQuestion =
           TECHNICAL_QUESTIONS[
             Math.floor(Math.random() * TECHNICAL_QUESTIONS.length)
           ];
 
         const taskId = `task_${Date.now()}_${Math.floor(
-          Math.random() * 1000
-        )}_imposter`;
+          Math.random() * 1000000
+        )}_imposter_${i}`;
 
         // Assign task to a random room
         const randomRoom =
@@ -1007,26 +1026,67 @@ class GameController {
 
         tasks.push(task);
 
-        // Add task ID to player's tasks
-        player.tasks.push(taskId);
+        // Add task ID to player's tasks (avoiding duplicates)
+        if (!player.tasks.includes(taskId)) {
+          player.tasks.push(taskId);
+        }
+
+        // Add task ID to the room's tasks (avoiding duplicates)
+        const room = game.map.find((r: any) => r.name === randomRoom);
+        if (room) {
+          // Check if task ID already exists in room tasks to prevent duplicates
+          if (!room.tasks.includes(taskId)) {
+            room.tasks.push(taskId);
+          }
+        }
 
         // Update in the game players array
         const gamePlayer = game.players.find(
           (p: any) => p.playerId === player.playerId
         );
         if (gamePlayer) {
-          gamePlayer.tasks.push(taskId);
+          // Check if task ID already exists in player tasks to prevent duplicates
+          if (!gamePlayer.tasks.includes(taskId)) {
+            gamePlayer.tasks.push(taskId);
+          }
         }
       }
     }
 
     // Save tasks to database
-    for (const task of tasks) {
-      const taskModel = new TaskModel(task);
-      await taskModel.save();
+    try {
+      for (const task of tasks) {
+        const taskModel = new TaskModel(task);
+        await taskModel.save();
+      }
+    } catch (error) {
+      console.error("Error saving tasks to database:", error);
+      throw new Error(
+        `Failed to save tasks: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
     game.tasks = tasks;
+
+    // Log game state for debugging
+    console.log(
+      `Created ${tasks.length} tasks for ${game.players.length} players`
+    );
+
+    // Log some statistics about the game state
+    const totalPlayerTasks = game.players.reduce(
+      (sum: number, player: { tasks: string[] }) => sum + player.tasks.length,
+      0
+    );
+    const totalRoomTasks = game.map.reduce(
+      (sum: number, room: { tasks: string[] }) => sum + room.tasks.length,
+      0
+    );
+    console.log(
+      `Total player tasks: ${totalPlayerTasks}, Total room tasks: ${totalRoomTasks}`
+    );
   }
 
   public getGame = async (req: Request, res: Response): Promise<void> => {

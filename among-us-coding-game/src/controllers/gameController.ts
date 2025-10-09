@@ -4,6 +4,16 @@ import Player from "../models/Player";
 import { TaskModel, ITask } from "../models/Task";
 import SocketService, { getIO } from "../services/socketService";
 
+// Helper function to generate a random alphanumeric string
+const generateGameId = (length: number = 6): string => {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+};
+
 // Sample technical questions database
 // const TECHNICAL_QUESTIONS = [
 //   {
@@ -57,35 +67,54 @@ const TECHNICAL_QUESTIONS = [
     difficulty: "medium",
   },
   {
-    question: "_______ is the oldest phone hacking techniques used by hackers to make free calls",
+    question:
+      "_______ is the oldest phone hacking techniques used by hackers to make free calls",
     options: ["Phishing", "Spamming", "Phreaking", "Cracking"],
     answer: "Phreaking",
     category: "Cybersecurity",
     difficulty: "medium",
   },
   {
-    question: "_____ is a powerful encryption tool released by Philip Zimmerman in the year 1991.",
-    options: ["PGP (Protected Good Privacy)", "AES (Advanced Encryption Standard)", "PGP (Pretty Good Privacy)", "DES (Data Encryption Standard)"],
+    question:
+      "_____ is a powerful encryption tool released by Philip Zimmerman in the year 1991.",
+    options: [
+      "PGP (Protected Good Privacy)",
+      "AES (Advanced Encryption Standard)",
+      "PGP (Pretty Good Privacy)",
+      "DES (Data Encryption Standard)",
+    ],
     answer: "PGP (Pretty Good Privacy)",
     category: "Cybersecurity",
     difficulty: "medium",
   },
   {
     question: "In IP address, IP is abbreviated as __________",
-    options: ["Internet Program", "Internet Protocol", "Intuition Programs", "Internet Pathway"],
+    options: [
+      "Internet Program",
+      "Internet Protocol",
+      "Intuition Programs",
+      "Internet Pathway",
+    ],
     answer: "Internet Protocol",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "What is a critical reason why cybersecurity is important in today's world?",
-    options: ["To prevent identity theft, extortion, and data loss", "To ensure faster technology updates", "To reduce internet usage", "To enable social media promotions"],
+    question:
+      "What is a critical reason why cybersecurity is important in today's world?",
+    options: [
+      "To prevent identity theft, extortion, and data loss",
+      "To ensure faster technology updates",
+      "To reduce internet usage",
+      "To enable social media promotions",
+    ],
     answer: "To prevent identity theft, extortion, and data loss",
     category: "Cybersecurity",
     difficulty: "easy",
   },
   {
-    question: "Which of the following is NOT considered a type of cybersecurity threat?",
+    question:
+      "Which of the following is NOT considered a type of cybersecurity threat?",
     options: ["Malware", "Cloud security", "Ransomware", "Phishing"],
     answer: "Cloud security",
     category: "Cybersecurity",
@@ -93,69 +122,110 @@ const TECHNICAL_QUESTIONS = [
   },
   {
     question: "What is the primary goal of cybersecurity?",
-    options: ["To enhance the speed of internet connections", "To protect systems, networks, and programs from digital attacks", "To develop new digital devices", "To automate all business processes"],
+    options: [
+      "To enhance the speed of internet connections",
+      "To protect systems, networks, and programs from digital attacks",
+      "To develop new digital devices",
+      "To automate all business processes",
+    ],
     answer: "To protect systems, networks, and programs from digital attacks",
     category: "Cybersecurity",
     difficulty: "easy",
   },
   {
-    question: "Which of the following is NOT a key component of an effective cybersecurity defense?",
+    question:
+      "Which of the following is NOT a key component of an effective cybersecurity defense?",
     options: ["People", "Processes", "Technology", "Social media presence"],
     answer: "Social media presence",
     category: "Cybersecurity",
     difficulty: "easy",
   },
   {
-    question: "What is a common type of cyberattack where fraudulent emails are sent to steal sensitive data?",
+    question:
+      "What is a common type of cyberattack where fraudulent emails are sent to steal sensitive data?",
     options: ["Phishing", "Ransomware", "Social engineering", "Malware"],
     answer: "Phishing",
     category: "Cybersecurity",
     difficulty: "easy",
   },
   {
-    question: "Which of the following is the best example of Artificial Intelligence in everyday life?",
-    options: ["A ceiling fan rotating when switched on", "Google Maps suggesting the fastest route", "A calculator solving 5 × 8", "A clock showing the current time"],
+    question:
+      "Which of the following is the best example of Artificial Intelligence in everyday life?",
+    options: [
+      "A ceiling fan rotating when switched on",
+      "Google Maps suggesting the fastest route",
+      "A calculator solving 5 × 8",
+      "A clock showing the current time",
+    ],
     answer: "Google Maps suggesting the fastest route",
     category: "Artificial Intelligence",
     difficulty: "easy",
   },
   {
-    question: "In AI, the term \"learning\" usually means:",
-    options: ["Remembering everything forever", "Changing behavior based on experience", "Installing new software", "Memorizing instructions without change"],
+    question: 'In AI, the term "learning" usually means:',
+    options: [
+      "Remembering everything forever",
+      "Changing behavior based on experience",
+      "Installing new software",
+      "Memorizing instructions without change",
+    ],
     answer: "Changing behavior based on experience",
     category: "Artificial Intelligence",
     difficulty: "easy",
   },
   {
-    question: "Suppose you design a chatbot that replies to your messages. Which part of AI does this represent?",
-    options: ["Computer Vision", "Natural Language Processing", "Robotics", "Expert Systems"],
+    question:
+      "Suppose you design a chatbot that replies to your messages. Which part of AI does this represent?",
+    options: [
+      "Computer Vision",
+      "Natural Language Processing",
+      "Robotics",
+      "Expert Systems",
+    ],
     answer: "Natural Language Processing",
     category: "Artificial Intelligence",
     difficulty: "medium",
   },
   {
     question: "Which of the following is NOT an example of Machine Learning?",
-    options: ["Email spam filter improving with feedback", "Netflix recommending movies", "A toaster heating bread", "A phone unlocking using face recognition"],
+    options: [
+      "Email spam filter improving with feedback",
+      "Netflix recommending movies",
+      "A toaster heating bread",
+      "A phone unlocking using face recognition",
+    ],
     answer: "A toaster heating bread",
     category: "Artificial Intelligence",
     difficulty: "easy",
   },
   {
-    question: "A self-driving car stops at a red traffic light. Which AI ability is used here?",
-    options: ["Vision + Decision Making", "Speech Recognition", "Data Encryption", "Arithmetic Calculation"],
+    question:
+      "A self-driving car stops at a red traffic light. Which AI ability is used here?",
+    options: [
+      "Vision + Decision Making",
+      "Speech Recognition",
+      "Data Encryption",
+      "Arithmetic Calculation",
+    ],
     answer: "Vision + Decision Making",
     category: "Artificial Intelligence",
     difficulty: "medium",
   },
   {
     question: "Which statement is true about AI?",
-    options: ["AI can only work if it is programmed with every possible rule", "AI systems can sometimes improve themselves from data", "AI always gives perfect answers without errors", "AI is only used in robots"],
+    options: [
+      "AI can only work if it is programmed with every possible rule",
+      "AI systems can sometimes improve themselves from data",
+      "AI always gives perfect answers without errors",
+      "AI is only used in robots",
+    ],
     answer: "AI systems can sometimes improve themselves from data",
     category: "Artificial Intelligence",
     difficulty: "medium",
   },
   {
-    question: "Imagine you train a model to recognize fruits. If you show it a green apple for the first time, but it predicts \"apple\" correctly, this is called:",
+    question:
+      'Imagine you train a model to recognize fruits. If you show it a green apple for the first time, but it predicts "apple" correctly, this is called:',
     options: ["Memorization", "Generalization", "Overfitting", "Guessing"],
     answer: "Generalization",
     category: "Artificial Intelligence",
@@ -163,22 +233,38 @@ const TECHNICAL_QUESTIONS = [
   },
   {
     question: "Which of the following pairs is correct?",
-    options: ["Computer Vision → Understanding Images", "NLP → Controlling Hardware Motors", "Reinforcement Learning → Storing Data in Databases", "Expert System → Playing Music"],
+    options: [
+      "Computer Vision → Understanding Images",
+      "NLP → Controlling Hardware Motors",
+      "Reinforcement Learning → Storing Data in Databases",
+      "Expert System → Playing Music",
+    ],
     answer: "Computer Vision → Understanding Images",
     category: "Artificial Intelligence",
     difficulty: "medium",
   },
   {
     question: "Which of these is an example of Reinforcement Learning?",
-    options: ["A student studying notes before exams", "A baby learning to walk by trial and error", "Copying answers from a book", "A clock ticking every second"],
+    options: [
+      "A student studying notes before exams",
+      "A baby learning to walk by trial and error",
+      "Copying answers from a book",
+      "A clock ticking every second",
+    ],
     answer: "A baby learning to walk by trial and error",
     category: "Artificial Intelligence",
     difficulty: "medium",
   },
   {
-    question: "AI is often compared to the human brain. Which feature is most similar between them?",
-    options: ["Both store only text data", "Both use \"neurons\" to pass signals", "Both require electricity but nothing else", "Both never make mistakes"],
-    answer: "Both use \"neurons\" to pass signals",
+    question:
+      "AI is often compared to the human brain. Which feature is most similar between them?",
+    options: [
+      "Both store only text data",
+      'Both use "neurons" to pass signals',
+      "Both require electricity but nothing else",
+      "Both never make mistakes",
+    ],
+    answer: 'Both use "neurons" to pass signals',
     category: "Artificial Intelligence",
     difficulty: "medium",
   },
@@ -190,15 +276,22 @@ const TECHNICAL_QUESTIONS = [
     difficulty: "easy",
   },
   {
-    question: "What will be the output of this C++ code?\nint a = 5, b = 2;\ncout << a / b;",
+    question:
+      "What will be the output of this C++ code?\nint a = 5, b = 2;\ncout << a / b;",
     options: ["2.5", "2", "3", "Error"],
     answer: "2",
     category: "C++ Programming",
     difficulty: "hard",
   },
   {
-    question: "Which of the following correctly declares an array of 10 integers in C++?",
-    options: ["int arr(10);", "int arr[10];", "array<int> arr(10);", "int[10] arr;"],
+    question:
+      "Which of the following correctly declares an array of 10 integers in C++?",
+    options: [
+      "int arr(10);",
+      "int arr[10];",
+      "array<int> arr(10);",
+      "int[10] arr;",
+    ],
     answer: "int arr[10];",
     category: "C++ Programming",
     difficulty: "easy",
@@ -211,14 +304,21 @@ const TECHNICAL_QUESTIONS = [
     difficulty: "medium",
   },
   {
-    question: "What is the correct way to take a string input (with spaces) in C++?",
-    options: ["cin >> str;", "getline(cin, str);", "cin.get(str);", "scanf(\"%s\", str);"],
+    question:
+      "What is the correct way to take a string input (with spaces) in C++?",
+    options: [
+      "cin >> str;",
+      "getline(cin, str);",
+      "cin.get(str);",
+      'scanf("%s", str);',
+    ],
     answer: "getline(cin, str);",
     category: "C++ Programming",
     difficulty: "medium",
   },
   {
-    question: "In C++, what will this code output?\nstring s = \"Hello\"; cout << s.length();",
+    question:
+      'In C++, what will this code output?\nstring s = "Hello"; cout << s.length();',
     options: ["4", "5", "6", "Error"],
     answer: "5",
     category: "C++ Programming",
@@ -233,13 +333,19 @@ const TECHNICAL_QUESTIONS = [
   },
   {
     question: "In C++, what does the new keyword do?",
-    options: ["Deletes a variable", "Creates a pointer", "Allocates memory dynamically", "Resets a variable to zero"],
+    options: [
+      "Deletes a variable",
+      "Creates a pointer",
+      "Allocates memory dynamically",
+      "Resets a variable to zero",
+    ],
     answer: "Allocates memory dynamically",
     category: "C++ Programming",
     difficulty: "medium",
   },
   {
-    question: "What will be the output of this program?\nint x = 10;\nint &y = x;\ny = 20;\ncout << x;",
+    question:
+      "What will be the output of this program?\nint x = 10;\nint &y = x;\ny = 20;\ncout << x;",
     options: ["10", "20", "Error", "Undefined"],
     answer: "20",
     category: "C++ Programming",
@@ -247,98 +353,121 @@ const TECHNICAL_QUESTIONS = [
   },
   {
     question: "Which statement about functions in C++ is correct?",
-    options: ["Functions cannot return values", "Functions can only return integers", "Functions can return any data type (including user-defined)", "Functions cannot take parameters"],
+    options: [
+      "Functions cannot return values",
+      "Functions can only return integers",
+      "Functions can return any data type (including user-defined)",
+      "Functions cannot take parameters",
+    ],
     answer: "Functions can return any data type (including user-defined)",
     category: "C++ Programming",
     difficulty: "medium",
   },
   {
-    question: "I'm the \"brain\" inside every computer, measured in GHz, but I'm not human. What am I?",
+    question:
+      "I'm the \"brain\" inside every computer, measured in GHz, but I'm not human. What am I?",
     options: ["RAM", "CPU", "Hard Disk", "GPU"],
     answer: "CPU",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I store data permanently, even when the power is off. What am I?",
+    question:
+      "I store data permanently, even when the power is off. What am I?",
     options: ["RAM", "Cache", "Hard Drive / SSD", "Register"],
     answer: "Hard Drive / SSD",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I travel around the world in packets, yet I have no body. What am I?",
+    question:
+      "I travel around the world in packets, yet I have no body. What am I?",
     options: ["Internet", "Bluetooth", "USB", "Fiber Cable"],
     answer: "Internet",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I am the smallest unit of data in computing, just 0s and 1s. What am I?",
+    question:
+      "I am the smallest unit of data in computing, just 0s and 1s. What am I?",
     options: ["Byte", "Bit", "Nibble", "Word"],
     answer: "Bit",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I was once the largest search engine before Google became popular. Who am I?",
+    question:
+      "I was once the largest search engine before Google became popular. Who am I?",
     options: ["Yahoo", "Bing", "DuckDuckGo", "Lycos"],
     answer: "Yahoo",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I am a phone feature invented accidentally while trying to reduce file size for music. What am I?",
+    question:
+      "I am a phone feature invented accidentally while trying to reduce file size for music. What am I?",
     options: ["Ringtone", "Bluetooth", "MP3 format", "Airplane mode"],
     answer: "MP3 format",
     category: "Computer Fundamentals",
     difficulty: "medium",
   },
   {
-    question: "I am a programming language named after a type of snake. Which one am I?",
+    question:
+      "I am a programming language named after a type of snake. Which one am I?",
     options: ["C++", "Python", "Ruby", "Cobra"],
     answer: "Python",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I am the social media platform that was originally meant for college students only. What am I?",
+    question:
+      "I am the social media platform that was originally meant for college students only. What am I?",
     options: ["Twitter", "Facebook", "LinkedIn", "Instagram"],
     answer: "Facebook",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "I am a machine that beat world champion Garry Kasparov in chess in 1997. Who am I?",
+    question:
+      "I am a machine that beat world champion Garry Kasparov in chess in 1997. Who am I?",
     options: ["AlphaZero", "Watson", "Deep Blue", "Bard"],
     answer: "Deep Blue",
     category: "Computer Fundamentals",
     difficulty: "medium",
   },
   {
-    question: "I am the first computer virus created in 1986, known to infect MS-DOS systems. What am I?",
+    question:
+      "I am the first computer virus created in 1986, known to infect MS-DOS systems. What am I?",
     options: ["Melissa", "Brain", "ILOVEYOU", "Creeper"],
     answer: "Brain",
     category: "Computer Fundamentals",
     difficulty: "medium",
   },
   {
-    question: "I am a famous tech billionaire who dropped out of Harvard and started Microsoft. Who am I?",
+    question:
+      "I am a famous tech billionaire who dropped out of Harvard and started Microsoft. Who am I?",
     options: ["Steve Jobs", "Elon Musk", "Bill Gates", "Mark Zuckerberg"],
     answer: "Bill Gates",
     category: "Computer Fundamentals",
     difficulty: "easy",
   },
   {
-    question: "You have a circuit with a battery and a bulb. If you add another identical bulb in series, what will happen to the brightness of each bulb?",
+    question:
+      "You have a circuit with a battery and a bulb. If you add another identical bulb in series, what will happen to the brightness of each bulb?",
     options: ["Increase", "Decrease", "Remain same", "Explode"],
     answer: "Decrease",
     category: "Electronics",
     difficulty: "medium",
   },
   {
-    question: "In a parallel circuit, one bulb fuses. What happens to the remaining bulbs?",
-    options: ["All go off", "Remaining keep glowing", "They glow brighter", "Circuit breaks fully"],
+    question:
+      "In a parallel circuit, one bulb fuses. What happens to the remaining bulbs?",
+    options: [
+      "All go off",
+      "Remaining keep glowing",
+      "They glow brighter",
+      "Circuit breaks fully",
+    ],
     answer: "Remaining keep glowing",
     category: "Electronics",
     difficulty: "medium",
@@ -351,21 +480,34 @@ const TECHNICAL_QUESTIONS = [
     difficulty: "easy",
   },
   {
-    question: "You connect a capacitor to a battery. After a while, no current flows. Why?",
-    options: ["Battery is dead", "Capacitor is full", "Circuit broke", "Inductor absorbed charge"],
+    question:
+      "You connect a capacitor to a battery. After a while, no current flows. Why?",
+    options: [
+      "Battery is dead",
+      "Capacitor is full",
+      "Circuit broke",
+      "Inductor absorbed charge",
+    ],
     answer: "Capacitor is full",
     category: "Electronics",
     difficulty: "medium",
   },
   {
-    question: "Imagine two resistors: one is 2Ω and the other is 4Ω. In which case is the total resistance less than 2Ω?",
-    options: ["Connected in series", "Connected in parallel", "Connected randomly", "Never possible"],
+    question:
+      "Imagine two resistors: one is 2Ω and the other is 4Ω. In which case is the total resistance less than 2Ω?",
+    options: [
+      "Connected in series",
+      "Connected in parallel",
+      "Connected randomly",
+      "Never possible",
+    ],
     answer: "Connected in parallel",
     category: "Electronics",
     difficulty: "medium",
   },
   {
-    question: "If you increase the frequency of AC supply, what happens to the reactance of a capacitor?",
+    question:
+      "If you increase the frequency of AC supply, what happens to the reactance of a capacitor?",
     options: ["Increases", "Decreases", "Remains constant", "Becomes zero"],
     answer: "Decreases",
     category: "Electronics",
@@ -373,27 +515,37 @@ const TECHNICAL_QUESTIONS = [
   },
   {
     question: "Why are transmission lines operated at very high voltages?",
-    options: ["To increase current", "To reduce power loss", "To make lines glow", "To reduce voltage drop"],
+    options: [
+      "To increase current",
+      "To reduce power loss",
+      "To make lines glow",
+      "To reduce voltage drop",
+    ],
     answer: "To reduce power loss",
     category: "Electronics",
     difficulty: "medium",
   },
   {
     question: "A transistor used as a switch is in which region when it is ON?",
-    options: ["Cut-off region", "Saturation region", "Active region", "Breakdown region"],
+    options: [
+      "Cut-off region",
+      "Saturation region",
+      "Active region",
+      "Breakdown region",
+    ],
     answer: "Saturation region",
     category: "Electronics",
     difficulty: "hard",
   },
   {
-    question: "If the north pole of a magnet is brought near the north pole of another magnet, what happens?",
+    question:
+      "If the north pole of a magnet is brought near the north pole of another magnet, what happens?",
     options: ["They attract", "They repel", "Nothing happens", "They rotate"],
     answer: "They repel",
     category: "Electronics",
     difficulty: "easy",
   },
 ];
-
 
 // Sabotage tasks database
 const SABOTAGE_TASKS = [
@@ -481,8 +633,25 @@ class GameController {
         return;
       }
 
-      // Generate unique game ID
-      const gameId = `game_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      // Generate unique game ID (4-6 characters)
+      let gameId;
+      let isUnique = false;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (!isUnique && attempts < maxAttempts) {
+        gameId = generateGameId(6);
+        const existingGame = await Game.findOne({ gameId });
+        if (!existingGame) {
+          isUnique = true;
+        }
+        attempts++;
+      }
+
+      // If we couldn't generate a unique ID after max attempts, fall back to timestamp
+      if (!isUnique) {
+        gameId = `G${Date.now().toString().slice(-5)}`;
+      }
 
       const newGame = new Game({
         gameId,
@@ -681,6 +850,8 @@ class GameController {
   };
 
   private assignRoles(game: any): void {
+    // Commented out impostor assignment - all players are now crewmates
+    /*
     // Shuffle players
     const shuffledPlayers = [...game.players].sort(() => Math.random() - 0.5);
 
@@ -703,6 +874,22 @@ class GameController {
     // Assign crewmates to remaining players
     for (let i = game.imposterCount; i < shuffledPlayers.length; i++) {
       const player = shuffledPlayers[i];
+      player.role = "crewmate";
+      player.isImpostor = false;
+
+      // Update in the game players array
+      const gamePlayer = game.players.find(
+        (p: any) => p.playerId === player.playerId
+      );
+      if (gamePlayer) {
+        gamePlayer.role = "crewmate";
+        gamePlayer.isImpostor = false;
+      }
+    }
+    */
+
+    // Assign all players as crewmates
+    for (const player of game.players) {
       player.role = "crewmate";
       player.isImpostor = false;
 
@@ -739,8 +926,8 @@ class GameController {
     );
 
     for (const player of crewmates) {
-      // Assign 3 random tasks to each crewmate
-      for (let i = 0; i < 3; i++) {
+      // Assign 10 random tasks to each crewmate
+      for (let i = 0; i < 30; i++) {
         const randomQuestion =
           TECHNICAL_QUESTIONS[
             Math.floor(Math.random() * TECHNICAL_QUESTIONS.length)
@@ -791,8 +978,8 @@ class GameController {
     );
 
     for (const player of impostors) {
-      // Assign 3 normal tasks to each impostor
-      for (let i = 0; i < 3; i++) {
+      // Assign 10 normal tasks to each impostor
+      for (let i = 0; i < 30; i++) {
         const randomQuestion =
           TECHNICAL_QUESTIONS[
             Math.floor(Math.random() * TECHNICAL_QUESTIONS.length)

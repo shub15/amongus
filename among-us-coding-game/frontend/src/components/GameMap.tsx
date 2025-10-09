@@ -272,7 +272,7 @@ const GameMap: React.FC<GameMapProps> = ({
     return tasks.filter(
       (task: any) =>
         playerTaskIds.includes(task.taskId) &&
-        task.status === "pending" &&
+        // Show all tasks regardless of status (pending, completed, failed)
         room.tasks?.includes(task.taskId) &&
         // Show tasks based on player role instead of task description
         currentPlayer?.playerId === task.assignedTo
@@ -284,6 +284,17 @@ const GameMap: React.FC<GameMapProps> = ({
     return imageMap.map((room) => {
       const roomTasks = getTasksForRoom(room.name);
       if (roomTasks.length === 0) return null;
+
+      // Count different task statuses
+      const pendingTasks = roomTasks.filter(
+        (task) => task.status === "pending"
+      ).length;
+      const completedTasks = roomTasks.filter(
+        (task) => task.status === "completed"
+      ).length;
+      const failedTasks = roomTasks.filter(
+        (task) => task.status === "failed"
+      ).length;
 
       // Position task indicator at a slightly offset position from room center
       const indicatorX = room.center.x + 15;
@@ -314,6 +325,9 @@ const GameMap: React.FC<GameMapProps> = ({
           </text>
           <title>
             {roomTasks.length} task{roomTasks.length > 1 ? "s" : ""} available
+            {pendingTasks > 0 ? ` (${pendingTasks} pending)` : ""}
+            {completedTasks > 0 ? ` (${completedTasks} completed)` : ""}
+            {failedTasks > 0 ? ` (${failedTasks} failed)` : ""}
           </title>
         </g>
       );
@@ -682,30 +696,66 @@ const GameMap: React.FC<GameMapProps> = ({
                       key={task.taskId}
                       className={`p-3 rounded cursor-pointer hover:bg-amber-800 transition-colors ${
                         task.assignedTo === currentPlayer.playerId
-                          ? "bg-amber-900"
+                          ? task.status === "completed"
+                            ? "bg-green-900" // Green for completed tasks
+                            : task.status === "failed"
+                            ? "bg-red-900" // Red for failed tasks
+                            : "bg-amber-900" // Amber for pending tasks
                           : "bg-gray-700 cursor-not-allowed"
                       }`}
                       onClick={() => {
-                        // Only allow players to select their own tasks
+                        // Only allow players to select their own tasks if they are pending
                         if (
                           task.assignedTo === currentPlayer.playerId &&
+                          task.status === "pending" &&
                           onTaskSelect
                         ) {
                           onTaskSelect(task);
-                        } else if (task.assignedTo === currentPlayer.playerId) {
+                        } else if (
+                          task.assignedTo === currentPlayer.playerId &&
+                          task.status === "pending"
+                        ) {
                           alert(`Task: ${task.description}
 
 Question: ${task.question}
 
 Click 'OK' to answer this task.`);
-                        } else {
+                        } else if (task.assignedTo !== currentPlayer.playerId) {
                           alert("This task is not assigned to you!");
+                        } else if (task.status !== "pending") {
+                          // Show task status for completed/failed tasks
+                          alert(`Task: ${task.description}
+
+Status: ${task.status === "completed" ? "Completed" : "Failed"}
+
+You have already ${
+                            task.status === "completed"
+                              ? "completed"
+                              : "attempted"
+                          } this task.`);
                         }
                       }}
                     >
                       <div className="font-medium">{task.description}</div>
-                      <div className="text-sm text-amber-200">
-                        {task.category} • {task.difficulty}
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-amber-200">
+                          {task.category} • {task.difficulty}
+                        </div>
+                        <div
+                          className={`text-xs px-2 py-1 rounded ${
+                            task.status === "completed"
+                              ? "bg-green-500"
+                              : task.status === "failed"
+                              ? "bg-red-500"
+                              : "bg-gray-500"
+                          }`}
+                        >
+                          {task.status === "completed"
+                            ? "Completed"
+                            : task.status === "failed"
+                            ? "Failed"
+                            : "Pending"}
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -29,6 +29,10 @@ const GamePage = () => {
   const [showMeetingButton, setShowMeetingButton] = useState(true);
   const [currentPlayer, setCurrentPlayer] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [taskResult, setTaskResult] = useState<{
+    isCorrect: boolean;
+    message: string;
+  } | null>(null);
 
   // Find current player
   useEffect(() => {
@@ -92,11 +96,32 @@ const GamePage = () => {
     if (!selectedTask || !answer) return;
 
     try {
-      await submitTask(selectedTask.taskId, answer);
-      setSelectedTask(null);
+      const result = await submitTask(selectedTask.taskId, answer);
+      // Set the task result to show feedback to the user
+      setTaskResult({
+        isCorrect: result.isCorrect,
+        message: result.isCorrect
+          ? "Correct! Task completed."
+          : "Incorrect! Please try again.",
+      });
+
+      // Clear the answer
       setAnswer("");
+
+      // Don't close the modal immediately, let the user see the result
+      // Only close after a delay if the answer was correct
+      if (result.isCorrect) {
+        setTimeout(() => {
+          setSelectedTask(null);
+          setTaskResult(null);
+        }, 2000);
+      }
     } catch (err) {
       console.error("Failed to submit task", err);
+      setTaskResult({
+        isCorrect: false,
+        message: "Error submitting task. Please try again.",
+      });
     }
   };
 
@@ -314,7 +339,7 @@ const GamePage = () => {
             )}
 
             {/* Tasks */}
-            <div className="bg-slate-800 rounded-lg p-4 mb-6">
+            {/* <div className="bg-slate-800 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Tasks</h2>
                 {showMeetingButton && game.gameStatus === "in-progress" && (
@@ -349,9 +374,9 @@ const GamePage = () => {
                         key={task.taskId}
                         className={`p-4 rounded-lg cursor-pointer transition duration-200 ${
                           task.status === "completed"
-                            ? "bg-green-900"
+                            ? "bg-green-900 border-2 border-green-500"
                             : task.status === "failed"
-                            ? "bg-red-900"
+                            ? "bg-red-900 border-2 border-red-500"
                             : "bg-slate-700 hover:bg-slate-600"
                         }`}
                         onClick={() =>
@@ -369,7 +394,11 @@ const GamePage = () => {
                                 : "bg-gray-500"
                             }`}
                           >
-                            {task.status}
+                            {task.status === "completed"
+                              ? "Completed"
+                              : task.status === "failed"
+                              ? "Failed"
+                              : "Pending"}
                           </span>
                         </div>
                         <div className="text-sm text-gray-400 mt-1">
@@ -379,7 +408,7 @@ const GamePage = () => {
                     ))}
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Task Modal */}
             {selectedTask && (
@@ -389,6 +418,17 @@ const GamePage = () => {
                     {selectedTask.description}
                   </h3>
                   <p className="mb-4">{selectedTask.question}</p>
+
+                  {/* Show task result if available */}
+                  {taskResult && (
+                    <div
+                      className={`mb-4 p-3 rounded text-center ${
+                        taskResult.isCorrect ? "bg-green-700" : "bg-red-700"
+                      }`}
+                    >
+                      {taskResult.message}
+                    </div>
+                  )}
 
                   <div className="space-y-2 mb-4">
                     {selectedTask.options.map(
@@ -400,7 +440,11 @@ const GamePage = () => {
                               ? "bg-amongus-blue"
                               : "bg-slate-700 hover:bg-slate-600"
                           }`}
-                          onClick={() => setAnswer(option)}
+                          onClick={() => {
+                            setAnswer(option);
+                            // Clear any previous result when selecting a new option
+                            setTaskResult(null);
+                          }}
                         >
                           {option}
                         </div>
@@ -409,23 +453,61 @@ const GamePage = () => {
                   </div>
 
                   <div className="flex justify-end space-x-3">
-                    <button
-                      onClick={() => setSelectedTask(null)}
-                      className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleTaskSubmit}
-                      disabled={!answer}
-                      className={`py-2 px-4 rounded text-white ${
-                        answer
-                          ? "bg-amongus-green hover:bg-green-600"
-                          : "bg-gray-500 cursor-not-allowed"
-                      }`}
-                    >
-                      Submit
-                    </button>
+                    {!taskResult ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSelectedTask(null);
+                            setTaskResult(null);
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleTaskSubmit}
+                          disabled={!answer}
+                          className={`py-2 px-4 rounded text-white ${
+                            answer
+                              ? "bg-amongus-green hover:bg-green-600"
+                              : "bg-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          Submit
+                        </button>
+                      </>
+                    ) : taskResult.isCorrect ? (
+                      <button
+                        onClick={() => {
+                          setSelectedTask(null);
+                          setTaskResult(null);
+                        }}
+                        className="bg-amongus-green hover:bg-green-600 text-white py-2 px-4 rounded"
+                      >
+                        Close
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setTaskResult(null);
+                            setAnswer("");
+                          }}
+                          className="bg-amongus-blue hover:bg-blue-600 text-white py-2 px-4 rounded"
+                        >
+                          Try Again
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedTask(null);
+                            setTaskResult(null);
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

@@ -210,19 +210,24 @@ export const useGameState = (gameId: string, playerId: string) => {
         playerId,
         answer
       );
-      if (response.data.isCorrect) {
-        setTasks((prev) =>
-          prev.map((task) =>
-            task.taskId === taskId ? { ...task, status: "completed" } : task
-          )
-        );
+      // Update task status in local state
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.taskId === taskId
+            ? {
+                ...task,
+                status: response.data.isCorrect ? "completed" : "failed",
+              }
+            : task
+        )
+      );
 
-        // If this was the emergency task, clear it
-        if (response.data.task.isEmergency) {
-          setEmergencyTask(null);
-          setSabotageDeadline(null);
-        }
+      // If this was the emergency task and it was completed, clear it
+      if (response.data.task.isEmergency && response.data.isCorrect) {
+        setEmergencyTask(null);
+        setSabotageDeadline(null);
       }
+
       return response.data;
     } catch (err) {
       setError("Failed to submit task");

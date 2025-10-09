@@ -20,6 +20,7 @@ export interface ITask {
   options: string[]; // Multiple choice options
   isEmergency?: boolean; // Flag for emergency tasks
   deadline?: Date; // Deadline for emergency tasks
+  completedAt?: Date; // When the task was completed
 }
 
 export interface IPlayer {
@@ -132,7 +133,7 @@ const GameSchema: Schema = new Schema({
         displayName: String,
         adjacentRooms: [String],
         ventsTo: [String],
-        tasks: [String],
+        tasks: [String], // Task IDs available in this room
         position: {
           x: Number,
           y: Number,
@@ -146,7 +147,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Cafeteria",
         adjacentRooms: ["weapons", "admin", "medbay", "upper_engine"],
         ventsTo: [],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 2, y: 0 }, // Center top
       },
       {
@@ -154,7 +155,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Weapons",
         adjacentRooms: ["cafeteria", "o2", "navigation"],
         ventsTo: ["navigation"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 4, y: 0 }, // Top right
       },
       {
@@ -162,7 +163,7 @@ const GameSchema: Schema = new Schema({
         displayName: "O2",
         adjacentRooms: ["weapons", "navigation", "shields"],
         ventsTo: ["shields"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 4, y: 1 }, // Right side, middle-top
       },
       {
@@ -170,7 +171,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Navigation",
         adjacentRooms: ["weapons", "o2", "shields"],
         ventsTo: ["weapons"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 5, y: 1 }, // Far right, middle
       },
       {
@@ -178,7 +179,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Shields",
         adjacentRooms: ["navigation", "o2", "storage"],
         ventsTo: ["navigation"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 4, y: 2 }, // Right side, middle-bottom
       },
       {
@@ -186,7 +187,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Communications",
         adjacentRooms: ["storage", "shields"],
         ventsTo: [],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 4, y: 3 }, // Right side, bottom
       },
       {
@@ -200,7 +201,7 @@ const GameSchema: Schema = new Schema({
           "lower_engine",
         ],
         ventsTo: ["electrical", "admin"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 3, y: 2 }, // Center-right, middle
       },
       {
@@ -208,7 +209,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Admin",
         adjacentRooms: ["cafeteria", "storage", "electrical"],
         ventsTo: ["electrical"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 2, y: 1 }, // Center, below cafeteria
       },
       {
@@ -216,7 +217,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Electrical",
         adjacentRooms: ["storage", "lower_engine", "security"],
         ventsTo: ["security", "medbay"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 2, y: 2 }, // Center, middle
       },
       {
@@ -224,15 +225,20 @@ const GameSchema: Schema = new Schema({
         displayName: "Lower Engine",
         adjacentRooms: ["storage", "electrical", "security", "reactor"],
         ventsTo: [],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 3, y: 3 }, // Center-right, bottom
       },
       {
         name: "security",
         displayName: "Security",
-        adjacentRooms: ["electrical", "lower_engine", "reactor", "upper_engine"],
+        adjacentRooms: [
+          "electrical",
+          "lower_engine",
+          "reactor",
+          "upper_engine",
+        ],
         ventsTo: ["electrical", "medbay"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 2, y: 3 }, // Center, bottom
       },
       {
@@ -240,7 +246,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Reactor",
         adjacentRooms: ["security", "lower_engine", "upper_engine"],
         ventsTo: [],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 1, y: 3 }, // Center-left, bottom
       },
       {
@@ -248,7 +254,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Upper Engine",
         adjacentRooms: ["reactor", "security", "medbay", "cafeteria"],
         ventsTo: [],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 1, y: 2 }, // Center-left, middle
       },
       {
@@ -256,7 +262,7 @@ const GameSchema: Schema = new Schema({
         displayName: "Medbay",
         adjacentRooms: ["upper_engine", "cafeteria"],
         ventsTo: ["electrical", "security"],
-        tasks: [],
+        tasks: [], // Will be populated with task IDs
         position: { x: 1, y: 1 }, // Center-left, middle-top
       },
     ],

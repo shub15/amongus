@@ -18,6 +18,7 @@ interface Player {
   status: "alive" | "dead" | "disconnected";
   currentRoom: string;
   isVenting: boolean;
+  tasks?: string[]; // Add tasks property as optional
 }
 
 interface GameMapProps {
@@ -26,10 +27,12 @@ interface GameMapProps {
   playerRole: "crewmate" | "imposter" | "ghost";
   players: Player[];
   map: Room[];
+  tasks: any[]; // Add tasks prop
   onMoveToRoom: (roomName: string) => void;
   onUseVent: (targetRoom: string) => void;
   onKillPlayer: (targetId: string) => void;
   onReportBody: (deadPlayerId: string) => void;
+  onTaskSelect?: (task: any) => void; // Add task selection handler
 }
 
 const ROOM_DEFINITIONS: Record<
@@ -138,10 +141,12 @@ const GameMap: React.FC<GameMapProps> = ({
   playerRole,
   players,
   map,
+  tasks,
   onMoveToRoom,
   onUseVent,
   onKillPlayer,
   onReportBody,
+  onTaskSelect, // Add task selection handler
 }) => {
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
@@ -153,6 +158,7 @@ const GameMap: React.FC<GameMapProps> = ({
   const [killCooldown, setKillCooldown] = useState(0);
   const [imageMap, setImageMap] = useState<Room[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [visitedRooms, setVisitedRooms] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (map.length === 0) return;
@@ -233,27 +239,111 @@ const GameMap: React.FC<GameMapProps> = ({
     onReportBody(deadPlayerId);
   };
 
-  const renderPlayerOnMap = (player: Player) => {
-    const size = 2;
-    const room = imageMap.find((r) => r.name === player.currentRoom);
-    if (!room || !room.center) return null;
+  // Track when player enters a new room with tasks
+  useEffect(() => {
+    if (currentPlayer && currentPlayer.currentRoom) {
+      const roomName = currentPlayer.currentRoom;
 
+      // If player hasn't visited this room before and it has tasks, show notification
+      if (!visitedRooms.has(roomName)) {
+        const roomTasks = getTasksForRoom(roomName);
+        if (roomTasks.length > 0) {
+          // Add room to visited rooms
+          setVisitedRooms((prev) => new Set(prev).add(roomName));
+
+          // Show notification (in a real app, this would be a toast notification)
+          console.log(
+            `You have ${roomTasks.length} task${
+              roomTasks.length > 1 ? "s" : ""
+            } in this room!`
+          );
+        }
+      }
+    }
+  }, [currentPlayer, visitedRooms, tasks, imageMap]);
+
+  // Get tasks for a specific room
+  const getTasksForRoom = (roomName: string) => {
+    if (!currentPlayer) return [];
+
+    // Get player's task IDs
+    const playerTaskIds = currentPlayer.tasks || [];
+
+    // Find the room in the map
+    const room = imageMap.find((r) => r.name === roomName);
+    if (!room) return [];
+
+    // Filter tasks that are assigned to this player and belong to this room
+    // For impostors, only show fake tasks
+    // For crewmates, only show real tasks
+    return tasks.filter(
+      (task) =>
+        playerTaskIds.includes(task.taskId) &&
+        task.status === "pending" &&
+        room.tasks?.includes(task.taskId) &&
+        (currentPlayer.role === "imposter"
+          ? task.description.includes("Fake Task")
+          : !task.description.includes("Fake Task"))
+    );
+  };
+
+  // Render task indicators on the map
+  const renderTaskIndicators = () => {
+    return imageMap.map((room) => {
+      const roomTasks = getTasksForRoom(room.name);
+      if (roomTasks.length === 0) return null;
+
+      // Position task indicator at a slightly offset position from room center
+      const indicatorX = room.center.x + 15;
+      const indicatorY = room.center.y - 15;
+
+      return (
+        <g key={`tasks-${room.name}`}>
+          <circle
+            cx={indicatorX}
+            cy={indicatorY}
+            r="12"
+            fill="#f59e0b"
+            stroke="#d97706"
+            strokeWidth="2"
+            style={{ pointerEvents: "none" }}
+          />
+          <text
+            x={indicatorX}
+            y={indicatorY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="white"
+            fontSize="12"
+            fontWeight="bold"
+            style={{ pointerEvents: "none" }}
+          >
+            {roomTasks.length}
+          </text>
+          <title>
+            {roomTasks.length} task{roomTasks.length > 1 ? "s" : ""} available
+          </title>
+        </g>
+      );
+    });
+  };
+
+  // Render player on map
+  const renderPlayerOnMap = (player: Player) => {
+    const room = imageMap.find((r) => r.name === player.currentRoom);
+    if (!room) return null;
+
+    // Position player name at the center of the room
     const playerX = room.center.x;
     const playerY = room.center.y;
-    const isCurrentPlayer = player.playerId === playerId;
-
-    if (playerX < 0 || playerX > 1920 || playerY < 0 || playerY > 1080) {
-      console.warn(
-        `Player ${player.name} is outside viewBox bounds at (${playerX}, ${playerY})`
-      );
-      return null;
-    }
+    const isMe = player.playerId === playerId;
+    const size = 1;
 
     return (
       <g key={player.playerId}>
         <title>{`${player.name} (${player.role})`}</title>
 
-        {isCurrentPlayer && (
+        {isMe && (
           <polygon
             points={`${playerX},${playerY - 25 * size} ${playerX - 12 * size},${
               playerY - 5 * size
@@ -271,25 +361,25 @@ const GameMap: React.FC<GameMapProps> = ({
           />
         )}
 
-        {/* <text
-          x={playerX}
-          y={playerY}
-          textAnchor="middle"
-          fill={
-            player.role === "imposter"
-              ? "#ef4444"
-              : player.role === "crewmate"
-              ? "#3b82f6"
-              : "#6b7280"
-          }
-          stroke="#ffffff"
-          strokeWidth="1"
-          fontSize="100"
-          fontWeight="bold"
-          pointerEvents="none"
-        >
-          {player.name}
-        </text> */}
+        <text
+          x={playerX}
+          y={playerY}
+          textAnchor="middle"
+          fill={
+            player.role === "imposter"
+              ? "#ef4444"
+              : player.role === "crewmate"
+              ? "#3b82f6"
+              : "#6b7280"
+          }
+          stroke="#ffffff"
+          strokeWidth="1"
+          fontSize="14"
+          fontWeight="bold"
+          pointerEvents="none"
+        >
+          {player.name}
+        </text>
 
         {player.status === "dead" && (
           <text
@@ -498,11 +588,6 @@ const GameMap: React.FC<GameMapProps> = ({
                 height: "100%",
               }}
             >
-              {/* <div
-                ref={containerRef}
-                className="relative bg-slate-900 rounded-lg border-2 border-slate-700"
-                style={{ width: "100%", height: "800px" }}
-              > */}
               <div
                 style={{
                   position: "relative",
@@ -572,6 +657,9 @@ const GameMap: React.FC<GameMapProps> = ({
                       />
                     )}
 
+                  {/* Task indicators */}
+                  {renderTaskIndicators()}
+
                   {/* Players */}
                   {players.map(renderPlayerOnMap)}
 
@@ -579,7 +667,6 @@ const GameMap: React.FC<GameMapProps> = ({
                   {renderMovementArrows()}
                 </svg>
               </div>
-              {/* </div> */}
             </TransformComponent>
           </>
         )}
@@ -592,6 +679,76 @@ const GameMap: React.FC<GameMapProps> = ({
             {imageMap.find((r) => r.name === selectedRoom)?.displayName}
           </h3>
 
+          {/* Task information when player is in the room */}
+          {currentPlayer && currentPlayer.currentRoom === selectedRoom && (
+            <div className="mb-4">
+              <h4 className="font-bold mb-2">Tasks in this Room:</h4>
+              {getTasksForRoom(selectedRoom).length > 0 ? (
+                <div className="space-y-2">
+                  {getTasksForRoom(selectedRoom).map((task) => (
+                    <div
+                      key={task.taskId}
+                      className={`p-3 rounded cursor-pointer hover:bg-amber-800 transition-colors ${
+                        currentPlayer.role === "imposter" &&
+                        task.description.includes("Fake Task")
+                          ? "bg-amber-900"
+                          : currentPlayer.role === "crewmate" &&
+                            !task.description.includes("Fake Task")
+                          ? "bg-amber-900"
+                          : "bg-gray-700 cursor-not-allowed"
+                      }`}
+                      onClick={() => {
+                        // Only allow crewmates to select real tasks
+                        // Only allow impostors to select fake tasks
+                        const isCrewmateRealTask =
+                          currentPlayer.role === "crewmate" &&
+                          !task.description.includes("Fake Task");
+                        const isImpostorFakeTask =
+                          currentPlayer.role === "imposter" &&
+                          task.description.includes("Fake Task");
+
+                        if (
+                          (isCrewmateRealTask || isImpostorFakeTask) &&
+                          onTaskSelect
+                        ) {
+                          onTaskSelect(task);
+                        } else if (isCrewmateRealTask || isImpostorFakeTask) {
+                          alert(`Task: ${task.description}
+
+Question: ${task.question}
+
+Click 'OK' to answer this task.`);
+                        } else if (
+                          currentPlayer.role === "imposter" &&
+                          !task.description.includes("Fake Task")
+                        ) {
+                          // Impostor trying to access real task
+                          alert(
+                            "You cannot complete real tasks as an impostor!"
+                          );
+                        } else if (
+                          currentPlayer.role === "crewmate" &&
+                          task.description.includes("Fake Task")
+                        ) {
+                          // Crewmate trying to access fake task
+                          alert("This is a fake task for impostors only!");
+                        }
+                      }}
+                    >
+                      <div className="font-medium">{task.description}</div>
+                      <div className="text-sm text-amber-200">
+                        {task.category} • {task.difficulty}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400">No tasks available in this room</p>
+              )}
+            </div>
+          )}
+
+          {/* Players in room */}
           <div className="mb-4">
             <h4 className="font-bold mb-2">Players in Room:</h4>
             {playersInRoom.length > 0 ? (

@@ -347,6 +347,19 @@ class GameController {
   private async createTasksForPlayers(game: any): Promise<void> {
     const tasks = [];
 
+    // Define which rooms can have tasks (excluding sensitive areas like reactor, o2, etc. for regular tasks)
+    const taskableRooms = [
+      "cafeteria",
+      "weapons",
+      "admin",
+      "storage",
+      "electrical",
+      "medbay",
+      "communications",
+      "shields",
+      "navigation",
+    ];
+
     // Assign tasks to crewmates only
     const crewmates = game.players.filter(
       (player: any) => player.role === "crewmate"
@@ -362,6 +375,10 @@ class GameController {
 
         const taskId = `task_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
+        // Assign task to a random room
+        const randomRoom =
+          taskableRooms[Math.floor(Math.random() * taskableRooms.length)];
+
         const task = {
           taskId,
           description: `Technical Question ${i + 1}`,
@@ -372,6 +389,52 @@ class GameController {
           options: randomQuestion.options,
           category: randomQuestion.category,
           difficulty: randomQuestion.difficulty,
+        };
+
+        tasks.push(task);
+
+        // Add task ID to player's tasks
+        player.tasks.push(taskId);
+
+        // Add task ID to the room's tasks
+        const room = game.map.find((r: any) => r.name === randomRoom);
+        if (room) {
+          room.tasks.push(taskId);
+        }
+
+        // Update in the game players array
+        const gamePlayer = game.players.find(
+          (p: any) => p.playerId === player.playerId
+        );
+        if (gamePlayer) {
+          gamePlayer.tasks.push(taskId);
+        }
+      }
+    }
+
+    // Assign fake tasks to impostors
+    const impostors = game.players.filter(
+      (player: any) => player.role === "imposter"
+    );
+
+    for (const player of impostors) {
+      // Assign 3 fake tasks to each impostor
+      for (let i = 0; i < 3; i++) {
+        const taskId = `fake_task_${Date.now()}_${Math.floor(
+          Math.random() * 1000
+        )}`;
+
+        const task = {
+          taskId,
+          description: `Fake Task ${i + 1} (Impostor)`,
+          assignedTo: player.playerId,
+          status: "pending",
+          question:
+            "This is a fake task for impostors. You don't need to complete it.",
+          answer: "Fake Answer",
+          options: ["Option A", "Option B", "Option C", "Option D"],
+          category: "Fake",
+          difficulty: "easy",
         };
 
         tasks.push(task);
@@ -445,14 +508,14 @@ class GameController {
         return;
       }
 
-      // Find the task
-      const task = game.tasks.find((t: any) => t.taskId === taskId) as
-        | ITask
-        | undefined;
-      if (!task) {
+      // Find the task in the game object
+      const taskIndex = game.tasks.findIndex((t: any) => t.taskId === taskId);
+      if (taskIndex === -1) {
         res.status(404).json({ message: "Task not found" });
         return;
       }
+
+      const task = game.tasks[taskIndex];
 
       // Check if task is already completed
       if (task.status === "completed") {
@@ -460,14 +523,62 @@ class GameController {
         return;
       }
 
+      // Find the player who submitted the task
+      const submittingPlayer = game.players.find((p: any) => p.playerId === playerId);
+      if (!submittingPlayer) {
+        res.status(404).json({ message: "Player not found" });
+        return;
+      }
+
+      // For crewmates, allow retrying failed tasks
+      if (task.status === "failed" && submittingPlayer.role === "crewmate" && !task.description.includes("Fake Task")) {
+        // Reset the task status to pending to allow retry
+        task.status = "pending";
+      }
+
+      // Prevent impostors from submitting real tasks
+      if (
+        submittingPlayer.role === "imposter" &&
+        !task.description.includes("Fake Task")
+      ) {
+        res.status(403).json({ message: "Impostors cannot submit real tasks" });
+        return;
+      }
+
+      // Prevent crewmates from submitting fake tasks
+      if (
+        submittingPlayer.role === "crewmate" &&
+        task.description.includes("Fake Task")
+      ) {
+        res.status(403).json({ message: "Crewmates cannot submit fake tasks" });
+        return;
+      }
+
       // Verify the answer
       const isCorrect = task.answer.toLowerCase() === answer.toLowerCase();
 
-      // Update task status
-      task.status = isCorrect ? "completed" : "failed";
+      // Update task status in the game object
       if (isCorrect) {
+        task.status = "completed";
         task.completedAt = new Date();
+      } else {
+        // For crewmates, keep task as pending to allow retries
+        // For impostors, mark as failed (they shouldn't be doing real tasks anyway)
+        if (submittingPlayer.role === "crewmate" && !task.description.includes("Fake Task")) {
+          task.status = "pending"; // Allow retry
+        } else {
+          task.status = "failed"; // Mark as failed for impostors or fake tasks
+        }
       }
+
+      // Update the task in the database
+      await TaskModel.findOneAndUpdate(
+        { taskId: task.taskId },
+        {
+          status: task.status,
+          completedAt: task.completedAt,
+        }
+      );
 
       // Handle emergency task completion
       if (task.isEmergency && isCorrect) {
@@ -476,16 +587,15 @@ class GameController {
         game.emergencyTaskId = null;
         game.sabotageDeadline = null;
 
-        // Check win conditions - if all regular tasks are completed, crewmates win
-        const regularTasks = game.tasks.filter((t) => !t.isEmergency);
-        const completedRegularTasks = regularTasks.filter(
-          (t) => t.status === "completed"
+        // Check win conditions - if all real tasks are completed, crewmates win
+        const realTasks = game.tasks.filter(
+          (t: any) => !t.isEmergency && !t.description.includes("Fake Task")
+        );
+        const completedRealTasks = realTasks.filter(
+          (t: any) => t.status === "completed"
         ).length;
 
-        if (
-          regularTasks.length > 0 &&
-          completedRegularTasks === regularTasks.length
-        ) {
+        if (realTasks.length > 0 && completedRealTasks === realTasks.length) {
           // All tasks completed - crewmates win
           game.gameStatus = "ended";
           game.winner = "crewmates";
@@ -495,9 +605,11 @@ class GameController {
 
       // Update player's completed tasks if correct (only for non-emergency tasks)
       if (isCorrect && !task.isEmergency) {
-        const player = game.players.find((p) => p.playerId === playerId);
-        if (player) {
-          player.completedTasks.push(taskId);
+        // Only crewmates can complete real tasks
+        if (submittingPlayer.role === "crewmate" &&
+          !task.description.includes("Fake Task")
+        ) {
+          submittingPlayer.completedTasks.push(taskId);
 
           // Update in database
           await Player.findOneAndUpdate(
@@ -505,18 +617,71 @@ class GameController {
             { $push: { completedTasks: taskId } }
           );
         }
+        // Impostors can complete fake tasks but it doesn't affect the game
       }
 
+      // Save the game before checking win conditions
       await game.save();
 
       // Notify all players about task submission
       const io = getIO();
-      io.to(gameId).emit("taskSubmitted", {
-        taskId,
-        playerId,
-        isCorrect,
-        task,
-      });
+
+      // For emergency tasks, notify all players
+      if (task.isEmergency) {
+        io.to(gameId).emit("taskSubmitted", {
+          taskId,
+          playerId,
+          isCorrect,
+          task,
+        });
+      } else {
+        // For regular tasks, only notify the player who submitted and check win conditions
+        // Send to the specific player
+        io.to(gameId).emit("taskSubmitted", {
+          taskId,
+          playerId,
+          isCorrect,
+          task,
+        });
+
+        // If this was a crewmate completing a real task, check win conditions
+        if (
+          submittingPlayer.role === "crewmate" &&
+          !task.description.includes("Fake Task") &&
+          isCorrect
+        ) {
+          // Reload the game to get the updated task status
+          const updatedGame = await Game.findOne({ gameId });
+          if (updatedGame) {
+            // Get all real tasks (not fake tasks for impostors)
+            const realTasks = updatedGame.tasks.filter(
+              (t: any) => !t.isEmergency && !t.description.includes("Fake Task")
+            );
+
+            // Get all completed real tasks
+            const completedRealTasks = realTasks.filter(
+              (t: any) => t.status === "completed"
+            ).length;
+
+            // Crewmates win if all their real tasks are completed
+            if (
+              realTasks.length > 0 &&
+              completedRealTasks === realTasks.length
+            ) {
+              updatedGame.gameStatus = "ended";
+              updatedGame.winner = "crewmates";
+              updatedGame.endedAt = new Date();
+              await updatedGame.save();
+
+              // Notify all players that the game has ended
+              io.to(gameId).emit("gameEnded", {
+                winner: "crewmates",
+                reason: "All tasks completed",
+              });
+            }
+          }
+        }
+      }
 
       // If this was an emergency task and it was completed correctly, notify all players
       if (task.isEmergency && isCorrect) {
@@ -777,6 +942,21 @@ class GameController {
     gameOver: boolean;
     winner: "crewmates" | "impostors" | null;
   } {
+    // Get all real tasks (not fake tasks for impostors)
+    const realTasks = game.tasks.filter(
+      (t: any) => !t.isEmergency && !t.description.includes("Fake Task")
+    );
+
+    // Get all completed real tasks
+    const completedRealTasks = realTasks.filter(
+      (t: any) => t.status === "completed"
+    ).length;
+
+    // Crewmates win if all their real tasks are completed
+    if (realTasks.length > 0 && completedRealTasks === realTasks.length) {
+      return { gameOver: true, winner: "crewmates" };
+    }
+
     // Count alive impostors
     const aliveImpostors = game.players.filter(
       (p: any) => p.role === "imposter" && p.status === "alive"
@@ -857,11 +1037,10 @@ class GameController {
         answer: sabotageTask.answer,
         options: sabotageTask.options,
         category: sabotageTask.category,
-        difficulty: sabotageTask.difficulty,
+        difficulty: sabotageTask.difficulty as "easy" | "medium" | "hard",
         isEmergency: true,
         deadline: deadline,
         createdAt: new Date(),
-        completedAt: null,
       };
 
       // Add emergency task to game
@@ -913,12 +1092,10 @@ class GameController {
         }
       }, 30000); // 30 seconds
 
-      res
-        .status(200)
-        .json({
-          message: "Sabotage initiated successfully",
-          emergencyTask: emergencyTaskData,
-        });
+      res.status(200).json({
+        message: "Sabotage initiated successfully",
+        emergencyTask: emergencyTaskData,
+      });
     } catch (error) {
       res.status(500).json({
         message:
@@ -1227,11 +1404,9 @@ class GameController {
 
       // Check if both players are in the same room
       if (reporter.currentRoom !== deadPlayer.currentRoom) {
-        res
-          .status(400)
-          .json({
-            message: "Players must be in the same room to report a body",
-          });
+        res.status(400).json({
+          message: "Players must be in the same room to report a body",
+        });
         return;
       }
 

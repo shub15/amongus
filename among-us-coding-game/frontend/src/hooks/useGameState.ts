@@ -60,11 +60,13 @@ export const useGameState = (gameId: string, playerId: string) => {
       setMap(data.map || []);
     });
 
-    SocketService.on("taskUpdate", (data) => {
-      // Update task status
+    SocketService.on("taskSubmitted", (data) => {
+      // Update task status only for the current player or for emergency tasks
       setTasks((prev) =>
         prev.map((task) =>
-          task.taskId === data.taskId ? { ...task, status: "completed" } : task
+          task.taskId === data.taskId
+            ? { ...task, status: data.isCorrect ? "completed" : "failed" }
+            : task
         )
       );
     });

@@ -250,10 +250,12 @@ const GamePage = () => {
                   playerRole={currentPlayer?.role || "crewmate"}
                   players={players}
                   map={map}
+                  tasks={tasks}
                   onMoveToRoom={movePlayer}
                   onUseVent={useVent}
                   onKillPlayer={killPlayer}
                   onReportBody={reportBody}
+                  onTaskSelect={setSelectedTask} // Add task selection handler
                 />
               </div>
             )}
@@ -324,14 +326,26 @@ const GamePage = () => {
                 )}
               </div>
 
-              {tasks.filter((task: any) => !task.isEmergency).length === 0 ? (
+              {tasks.filter(
+                (task: any) =>
+                  !task.isEmergency &&
+                  (currentPlayer?.role === "imposter"
+                    ? task.description.includes("Fake Task")
+                    : !task.description.includes("Fake Task"))
+              ).length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   No tasks assigned
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {tasks
-                    .filter((task: any) => !task.isEmergency)
+                    .filter(
+                      (task: any) =>
+                        !task.isEmergency &&
+                        (currentPlayer?.role === "imposter"
+                          ? task.description.includes("Fake Task")
+                          : !task.description.includes("Fake Task"))
+                    )
                     .map((task: any) => (
                       <div
                         key={task.taskId}

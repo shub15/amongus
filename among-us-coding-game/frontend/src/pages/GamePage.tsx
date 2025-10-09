@@ -189,11 +189,12 @@ const GamePage = () => {
                         }`}
                       ></div>
                       <span>{player.name}</span>
-                      {player.role === "imposter" && (
+                      {/* Temporarily commented out impostor label for hidden role game design */}
+                      {/* {player.role === "imposter" && (
                         <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded">
                           Impostor
                         </span>
-                      )}
+                      )} */}
                     </div>
                     {player.playerId === playerId && (
                       <span className="text-xs bg-amongus-blue text-white px-2 py-1 rounded">
@@ -205,8 +206,8 @@ const GamePage = () => {
               </div>
             </div>
 
-            {/* Impostor Actions */}
-            {isImpostor && game.gameStatus === "in-progress" && (
+            {/* Temporarily commented out impostor actions for hidden role game design */}
+            {/* {isImpostor && game.gameStatus === "in-progress" && (
               <div className="bg-slate-800 rounded-lg p-4 mt-6">
                 <h2 className="text-xl font-bold mb-4">Sabotage</h2>
                 <div className="grid grid-cols-2 gap-2">
@@ -236,7 +237,7 @@ const GamePage = () => {
                   </button>
                 </div>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Main Content */}
@@ -293,7 +294,7 @@ const GamePage = () => {
                     )}
                     {timeLeft === 0 && (
                       <span className="text-red-300">
-                        Time's up! Impostors win!
+                        Time's up! Game over!
                       </span>
                     )}
                   </div>
@@ -329,9 +330,8 @@ const GamePage = () => {
               {tasks.filter(
                 (task: any) =>
                   !task.isEmergency &&
-                  (currentPlayer?.role === "imposter"
-                    ? task.description.includes("Fake Task")
-                    : !task.description.includes("Fake Task"))
+                  // Show tasks based on player role instead of task description
+                  currentPlayer?.playerId === task.assignedTo
               ).length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   No tasks assigned
@@ -342,9 +342,7 @@ const GamePage = () => {
                     .filter(
                       (task: any) =>
                         !task.isEmergency &&
-                        (currentPlayer?.role === "imposter"
-                          ? task.description.includes("Fake Task")
-                          : !task.description.includes("Fake Task"))
+                        currentPlayer?.playerId === task.assignedTo
                     )
                     .map((task: any) => (
                       <div
@@ -483,7 +481,7 @@ const GamePage = () => {
                 <p className="text-xl mb-4">
                   Winner:{" "}
                   <span className="font-bold text-amongus-green">
-                    {game.winner === "crewmates" ? "Crewmates" : "Impostors"}
+                    {game.winner === "crewmates" ? "Crewmates" : "Other Team"}
                   </span>
                 </p>
                 <button

@@ -69,6 +69,8 @@ export const gameAPI = {
   createGame: (imposterCount: number = 1) =>
     api.post("/games", { imposterCount }),
 
+  getAllGames: () => api.get("/games"),
+
   getGame: (gameId: string) => {
     console.log("Fetching game with ID:", gameId);
     return api.get(`/games/${gameId}`);
@@ -108,6 +110,9 @@ export const gameAPI = {
     api.post(`/games/${gameId}/report-body`, { reporterId, deadPlayerId }),
 
   endGame: (gameId: string) => api.post(`/games/${gameId}/end`),
+
+  kickPlayer: (gameId: string, playerId: string) =>
+    api.post(`/games/${gameId}/kick`, { playerId }),
 };
 
 // Task API

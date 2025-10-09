@@ -264,26 +264,18 @@ const GameMap: React.FC<GameMapProps> = ({
 
   // Get tasks for a specific room
   const getTasksForRoom = (roomName: string) => {
-    if (!currentPlayer) return [];
+    const room = map?.find((r: any) => r.name === roomName);
+    if (!room || !room.tasks) return [];
 
-    // Get player's task IDs
-    const playerTaskIds = currentPlayer.tasks || [];
+    const playerTaskIds = currentPlayer?.tasks || [];
 
-    // Find the room in the map
-    const room = imageMap.find((r) => r.name === roomName);
-    if (!room) return [];
-
-    // Filter tasks that are assigned to this player and belong to this room
-    // For impostors, only show fake tasks
-    // For crewmates, only show real tasks
     return tasks.filter(
-      (task) =>
+      (task: any) =>
         playerTaskIds.includes(task.taskId) &&
         task.status === "pending" &&
         room.tasks?.includes(task.taskId) &&
-        (currentPlayer.role === "imposter"
-          ? task.description.includes("Fake Task")
-          : !task.description.includes("Fake Task"))
+        // Show tasks based on player role instead of task description
+        currentPlayer?.playerId === task.assignedTo
     );
   };
 
@@ -689,49 +681,25 @@ const GameMap: React.FC<GameMapProps> = ({
                     <div
                       key={task.taskId}
                       className={`p-3 rounded cursor-pointer hover:bg-amber-800 transition-colors ${
-                        currentPlayer.role === "imposter" &&
-                        task.description.includes("Fake Task")
-                          ? "bg-amber-900"
-                          : currentPlayer.role === "crewmate" &&
-                            !task.description.includes("Fake Task")
+                        task.assignedTo === currentPlayer.playerId
                           ? "bg-amber-900"
                           : "bg-gray-700 cursor-not-allowed"
                       }`}
                       onClick={() => {
-                        // Only allow crewmates to select real tasks
-                        // Only allow impostors to select fake tasks
-                        const isCrewmateRealTask =
-                          currentPlayer.role === "crewmate" &&
-                          !task.description.includes("Fake Task");
-                        const isImpostorFakeTask =
-                          currentPlayer.role === "imposter" &&
-                          task.description.includes("Fake Task");
-
+                        // Only allow players to select their own tasks
                         if (
-                          (isCrewmateRealTask || isImpostorFakeTask) &&
+                          task.assignedTo === currentPlayer.playerId &&
                           onTaskSelect
                         ) {
                           onTaskSelect(task);
-                        } else if (isCrewmateRealTask || isImpostorFakeTask) {
+                        } else if (task.assignedTo === currentPlayer.playerId) {
                           alert(`Task: ${task.description}
 
 Question: ${task.question}
 
 Click 'OK' to answer this task.`);
-                        } else if (
-                          currentPlayer.role === "imposter" &&
-                          !task.description.includes("Fake Task")
-                        ) {
-                          // Impostor trying to access real task
-                          alert(
-                            "You cannot complete real tasks as an impostor!"
-                          );
-                        } else if (
-                          currentPlayer.role === "crewmate" &&
-                          task.description.includes("Fake Task")
-                        ) {
-                          // Crewmate trying to access fake task
-                          alert("This is a fake task for impostors only!");
+                        } else {
+                          alert("This task is not assigned to you!");
                         }
                       }}
                     >
@@ -795,7 +763,8 @@ Click 'OK' to answer this task.`);
 
           {currentPlayer && currentPlayer.status === "alive" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {currentPlayer.role === "imposter" && (
+              {/* Temporarily commented out impostor elements for hidden role game design */}
+              {/* {currentPlayer.role === "imposter" && (
                 <button
                   onClick={handleUseVent}
                   disabled={ventCooldown > 0}
@@ -820,9 +789,9 @@ Click 'OK' to answer this task.`);
                   </svg>
                   {ventCooldown > 0 ? `Vent (${ventCooldown}s)` : "Use Vent"}
                 </button>
-              )}
+              )} */}
 
-              {canKill && currentPlayer.role === "imposter" && (
+              {/* {canKill && currentPlayer.role === "imposter" && (
                 <button
                   onClick={() => {
                     const target = playersInRoom.find(
@@ -854,7 +823,7 @@ Click 'OK' to answer this task.`);
                   </svg>
                   {killCooldown > 0 ? `Kill (${killCooldown}s)` : "Kill Player"}
                 </button>
-              )}
+              )} */}
 
               {canReport && currentPlayer.role === "crewmate" && (
                 <button

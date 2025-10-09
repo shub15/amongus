@@ -18,6 +18,9 @@ export const setGameRoutes = (app: Application): void => {
   // Public routes
   router.post("/", validateGameCreation, gameController.createGame);
 
+  // Admin route to get all games
+  router.get("/", authenticateToken, isAdmin, gameController.getAllGames);
+
   // Protected routes
   router.get(
     "/:gameId",
@@ -92,5 +95,13 @@ export const setGameRoutes = (app: Application): void => {
     validateGameId,
     authenticateToken,
     gameController.endGame
+  );
+
+  router.post(
+    "/:gameId/kick",
+    validateGameId,
+    authenticateToken,
+    isAdmin,
+    gameController.kickPlayer
   );
 };

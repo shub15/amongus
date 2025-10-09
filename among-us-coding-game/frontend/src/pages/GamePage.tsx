@@ -2,6 +2,21 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useGameState } from "../hooks/useGameState";
 import GameMap from "../components/GameMap";
+import GroupsIcon from '@mui/icons-material/Groups';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import PendingIcon from '@mui/icons-material/Pending';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import TimerIcon from '@mui/icons-material/Timer';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import HowToVoteIcon from '@mui/icons-material/HowToVote';
+import ReplayIcon from '@mui/icons-material/Replay';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -33,6 +48,7 @@ const GamePage = () => {
     isCorrect: boolean;
     message: string;
   } | null>(null);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   // Find current player
   useEffect(() => {
@@ -67,24 +83,35 @@ const GamePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading game...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-gray-400 mb-4"></div>
+          <div className="text-2xl font-bold text-gray-100 animate-pulse">
+            Loading game...
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-500 text-white p-4 rounded">Error: {error}</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex items-center justify-center p-4">
+        <div className="bg-red-500/20 backdrop-blur-md border-2 border-red-500 text-white p-8 rounded-2xl max-w-md w-full shadow-2xl">
+          <div className="flex justify-center mb-4">
+            <WarningAmberIcon sx={{ fontSize: 64, color: '#ef4444' }} />
+          </div>
+          <h2 className="text-2xl font-bold mb-2 text-center">Error</h2>
+          <p className="text-center">{error}</p>
+        </div>
       </div>
     );
   }
 
   if (!game) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Game not found</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex items-center justify-center">
+        <div className="text-xl text-gray-300">Game not found</div>
       </div>
     );
   }
@@ -97,7 +124,6 @@ const GamePage = () => {
 
     try {
       const result = await submitTask(selectedTask.taskId, answer);
-      // Set the task result to show feedback to the user
       setTaskResult({
         isCorrect: result.isCorrect,
         message: result.isCorrect
@@ -105,11 +131,8 @@ const GamePage = () => {
           : "Incorrect! Please try again.",
       });
 
-      // Clear the answer
       setAnswer("");
 
-      // Don't close the modal immediately, let the user see the result
-      // Only close after a delay if the answer was correct
       if (result.isCorrect) {
         setTimeout(() => {
           setSelectedTask(null);
@@ -129,7 +152,6 @@ const GamePage = () => {
     try {
       await callMeeting(reason);
       setShowMeetingButton(false);
-      // Re-enable meeting button after 30 seconds
       setTimeout(() => setShowMeetingButton(true), 30000);
     } catch (err) {
       console.error("Failed to call meeting", err);
@@ -145,124 +167,171 @@ const GamePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Game Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-amongus-red">
-            Among Us Coding Game
-          </h1>
-          <div className="text-right">
-            <div className="text-sm text-gray-400">Game ID: {gameId}</div>
-            <div className="text-sm">
-              Status: <span className="font-bold">{game.gameStatus}</span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 text-gray-100 p-4">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Collapsible Toggle Button */}
+        <div className="fixed top-4 right-4 z-50">
+          <button
+            onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+            className="bg-gradient-to-br from-slate-800/90 to-gray-800/90 backdrop-blur-xl hover:from-slate-700/90 hover:to-gray-700/90 text-white p-3 rounded-xl border border-gray-700/50 shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95"
+            title={isHeaderCollapsed ? "Show Header" : "Hide Header"}
+          >
+            {isHeaderCollapsed ? (
+              <ExpandMoreIcon sx={{ fontSize: 24 }} />
+            ) : (
+              <ExpandLessIcon sx={{ fontSize: 24 }} />
+            )}
+          </button>
+        </div>
+
+        {/* Game Header - Collapsible */}
+        <div
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            isHeaderCollapsed ? "max-h-0 opacity-0 mb-0" : "max-h-96 opacity-100 mb-6"
+          }`}
+        >
+          <div className="bg-gradient-to-br from-slate-800/50 to-gray-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-gray-700/50">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-black text-white mb-1 tracking-tight">
+                  Among Us Coding Game
+                </h1>
+                <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                    <span>Game ID: <code className="text-gray-300 font-mono">{gameId}</code></span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-600"></div>
+                  <div>
+                    Status: <span className="font-semibold text-white">{game.gameStatus}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Game Status Bar */}
-        <div className="bg-slate-800 rounded-lg p-4 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <span className="font-bold">Players: </span>
-              <span>
-                {players.filter((p: any) => p.status === "alive").length} alive,{" "}
-              </span>
-              <span>
-                {players.filter((p: any) => p.status === "dead").length} dead
-              </span>
-            </div>
-            <div>
-              {game.currentSabotage && (
-                <span className="bg-red-500 px-3 py-1 rounded-full text-sm">
-                  Sabotage: {game.currentSabotage}
-                </span>
-              )}
-              {timeLeft !== null && timeLeft > 0 && (
-                <span className="ml-2 bg-yellow-500 px-3 py-1 rounded-full text-sm">
-                  Time left: {timeLeft}s
-                </span>
-              )}
-              {timeLeft === 0 && (
-                <span className="ml-2 bg-red-500 px-3 py-1 rounded-full text-sm">
-                  Time's up!
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Task Summary */}
-          {currentPlayer && (
-            <div className="mt-4 pt-4 border-t border-slate-700">
-              <div className="flex justify-between">
-                <span className="font-bold">Your Tasks:</span>
-                <div className="flex space-x-4">
-                  <span className="text-green-400">
-                    Completed:{" "}
-                    {
-                      tasks.filter(
-                        (task: any) =>
-                          task.assignedTo === currentPlayer.playerId &&
-                          task.status === "completed"
-                      ).length
-                    }
-                  </span>
-                  <span className="text-red-400">
-                    Failed:{" "}
-                    {
-                      tasks.filter(
-                        (task: any) =>
-                          task.assignedTo === currentPlayer.playerId &&
-                          task.status === "failed"
-                      ).length
-                    }
-                  </span>
-                  <span className="text-yellow-400">
-                    Pending:{" "}
-                    {
-                      tasks.filter(
-                        (task: any) =>
-                          task.assignedTo === currentPlayer.playerId &&
-                          task.status === "pending"
-                      ).length
-                    }
+        {/* Game Status Bar - Collapsible */}
+        <div
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            isHeaderCollapsed ? "max-h-0 opacity-0 mb-0" : "max-h-96 opacity-100 mb-6"
+          }`}
+        >
+          <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50">
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <GroupsIcon sx={{ fontSize: 24, color: '#9ca3af' }} />
+                  <span className="text-gray-300">
+                    <span className="font-bold text-white">{players.filter((p: any) => p.status === "alive").length}</span> alive
                   </span>
                 </div>
+                <div className="h-6 w-px bg-gray-700"></div>
+                <div className="text-gray-400">
+                  <span className="font-bold text-gray-300">{players.filter((p: any) => p.status === "dead").length}</span> eliminated
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {game.currentSabotage && (
+                  <span className="flex items-center gap-2 bg-red-500/20 border border-red-500/50 px-4 py-2 rounded-lg text-red-300 text-sm font-semibold">
+                    <WarningAmberIcon sx={{ fontSize: 18 }} />
+                    Sabotage: {game.currentSabotage}
+                  </span>
+                )}
+                {timeLeft !== null && timeLeft > 0 && (
+                  <span className="flex items-center gap-2 bg-yellow-500/20 border border-yellow-500/50 px-4 py-2 rounded-lg text-yellow-300 text-sm font-semibold">
+                    <TimerIcon sx={{ fontSize: 18 }} />
+                    {timeLeft}s
+                  </span>
+                )}
+                {timeLeft === 0 && (
+                  <span className="flex items-center gap-2 bg-red-500/20 border border-red-500/50 px-4 py-2 rounded-lg text-red-300 text-sm font-semibold">
+                    <WarningAmberIcon sx={{ fontSize: 18 }} />
+                    Time's up!
+                  </span>
+                )}
               </div>
             </div>
-          )}
+
+            {/* Task Summary */}
+            {currentPlayer && (
+              <div className="mt-6 pt-6 border-t border-gray-700/50">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <AssignmentIcon sx={{ fontSize: 22, color: '#9ca3af' }} />
+                    <span className="font-bold text-white">Your Tasks</span>
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon sx={{ fontSize: 18, color: '#10b981' }} />
+                      <span className="text-green-400 font-semibold">
+                        {tasks.filter((task: any) => task.assignedTo === currentPlayer.playerId && task.status === "completed").length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CancelIcon sx={{ fontSize: 18, color: '#ef4444' }} />
+                      <span className="text-red-400 font-semibold">
+                        {tasks.filter((task: any) => task.assignedTo === currentPlayer.playerId && task.status === "failed").length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <PendingIcon sx={{ fontSize: 18, color: '#fbbf24' }} />
+                      <span className="text-yellow-400 font-semibold">
+                        {tasks.filter((task: any) => task.assignedTo === currentPlayer.playerId && task.status === "pending").length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Player List */}
           <div className="lg:col-span-1">
-            <div className="bg-slate-800 rounded-lg p-4">
-              <h2 className="text-xl font-bold mb-4">Players</h2>
-              <div className="space-y-2">
-                {players.map((player: any) => (
+            <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+                <GroupsIcon sx={{ fontSize: 26 }} />
+                Players
+              </h2>
+              <div className="space-y-3">
+                {players.map((player: any, index: number) => (
                   <div
                     key={player.playerId}
-                    className={`flex items-center justify-between p-3 rounded ${
-                      player.status === "dead" ? "bg-red-900" : "bg-slate-700"
+                    className={`flex items-center justify-between p-4 rounded-xl transition-all duration-300 ${
+                      player.status === "dead"
+                        ? "bg-red-900/30 border border-red-700/50"
+                        : "bg-gradient-to-br from-gray-800/80 to-slate-800/80 border border-gray-700/50 hover:border-gray-600/70"
                     }`}
                   >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-3 h-3 rounded-full mr-2 ${
-                          player.status === "alive"
-                            ? "bg-amongus-green"
-                            : "bg-gray-500"
-                        }`}
-                      ></div>
-                      <span>{player.name}</span>
-                      {/* Temporarily commented out impostor label for hidden role game design */}
-                      {/* {player.role === "imposter" && (
-                        <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded">
-                          Impostor
-                        </span>
-                      )} */}
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <FiberManualRecordIcon
+                          sx={{
+                            fontSize: 12,
+                            color: player.status === "alive" ? "#10b981" : "#6b7280",
+                          }}
+                        />
+                        {player.status === "alive" && (
+                          <div className="absolute inset-0">
+                            <FiberManualRecordIcon
+                              className="animate-ping"
+                              sx={{ fontSize: 12, color: "#10b981" }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-medium text-white">{player.name}</span>
                     </div>
                     {player.playerId === playerId && (
-                      <span className="text-xs bg-amongus-blue text-white px-2 py-1 rounded">
+                      <span className="text-xs bg-gray-700 border border-gray-600/50 text-white px-3 py-1 rounded-full font-semibold">
                         You
                       </span>
                     )}
@@ -270,46 +339,13 @@ const GamePage = () => {
                 ))}
               </div>
             </div>
-
-            {/* Temporarily commented out impostor actions for hidden role game design */}
-            {/* {isImpostor && game.gameStatus === "in-progress" && (
-              <div className="bg-slate-800 rounded-lg p-4 mt-6">
-                <h2 className="text-xl font-bold mb-4">Sabotage</h2>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleSabotage("lights")}
-                    className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
-                  >
-                    Lights
-                  </button>
-                  <button
-                    onClick={() => handleSabotage("reactor")}
-                    className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
-                  >
-                    Reactor
-                  </button>
-                  <button
-                    onClick={() => handleSabotage("oxygen")}
-                    className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
-                  >
-                    Oxygen
-                  </button>
-                  <button
-                    onClick={() => handleSabotage("communications")}
-                    className="bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
-                  >
-                    Communications
-                  </button>
-                </div>
-              </div>
-            )} */}
           </div>
 
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             {/* Game Map */}
             {map && (
-              <div className="bg-slate-800 rounded-lg p-4 mb-6">
+              <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50">
                 <GameMap
                   gameId={gameId!}
                   playerId={playerId}
@@ -321,44 +357,50 @@ const GamePage = () => {
                   onUseVent={useVent}
                   onKillPlayer={killPlayer}
                   onReportBody={reportBody}
-                  onTaskSelect={setSelectedTask} // Add task selection handler
+                  onTaskSelect={setSelectedTask}
                 />
               </div>
             )}
 
             {/* Emergency Task */}
             {emergencyTask && (
-              <div className="bg-red-900 rounded-lg p-4 mb-6">
-                <h2 className="text-xl font-bold mb-4 text-yellow-300">
-                  EMERGENCY TASK
-                </h2>
-                <p className="mb-4">{emergencyTask.question}</p>
+              <div className="bg-gradient-to-br from-red-900/40 to-red-800/40 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border-2 border-red-500/50">
+                <div className="flex items-center gap-3 mb-4">
+                  <WarningAmberIcon sx={{ fontSize: 32, color: '#fbbf24' }} />
+                  <h2 className="text-2xl font-black text-yellow-300">
+                    EMERGENCY TASK
+                  </h2>
+                </div>
+                <p className="mb-6 text-gray-200 text-lg">{emergencyTask.question}</p>
 
-                <div className="space-y-2 mb-4">
-                  {emergencyTask.options.map(
-                    (option: string, index: number) => (
-                      <div
-                        key={index}
-                        className={`p-3 rounded cursor-pointer ${
-                          answer === option
-                            ? "bg-amongus-blue"
-                            : "bg-red-800 hover:bg-red-700"
-                        }`}
-                        onClick={() => setAnswer(option)}
-                      >
-                        {option}
-                      </div>
-                    )
-                  )}
+                <div className="space-y-3 mb-6">
+                  {emergencyTask.options.map((option: string, index: number) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
+                        answer === option
+                          ? "bg-gray-700 border-gray-500 shadow-lg"
+                          : "bg-red-800/40 border-red-700/50 hover:bg-red-700/40 hover:border-red-600/50"
+                      }`}
+                      onClick={() => setAnswer(option)}
+                    >
+                      <span className="text-white font-medium">{option}</span>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <div className="text-sm">
+                  <div className="flex items-center gap-2 text-sm">
                     {timeLeft !== null && timeLeft > 0 && (
-                      <span>Time left: {timeLeft} seconds</span>
+                      <>
+                        <TimerIcon sx={{ fontSize: 18, color: '#fbbf24' }} />
+                        <span className="text-yellow-300 font-semibold">
+                          Time left: {timeLeft} seconds
+                        </span>
+                      </>
                     )}
                     {timeLeft === 0 && (
-                      <span className="text-red-300">
+                      <span className="text-red-300 font-semibold">
                         Time's up! Game over!
                       </span>
                     )}
@@ -366,10 +408,10 @@ const GamePage = () => {
                   <button
                     onClick={handleTaskSubmit}
                     disabled={!answer}
-                    className={`py-2 px-4 rounded text-white ${
+                    className={`py-3 px-6 rounded-xl font-bold text-white transition-all duration-200 ${
                       answer
-                        ? "bg-amongus-green hover:bg-green-600"
-                        : "bg-gray-500 cursor-not-allowed"
+                        ? "bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 hover:scale-105 border border-gray-600/50"
+                        : "bg-gray-700 cursor-not-allowed opacity-50 border border-gray-600/50"
                     }`}
                   >
                     Submit Emergency Task
@@ -378,188 +420,15 @@ const GamePage = () => {
               </div>
             )}
 
-            {/* Tasks */}
-            {/* <div className="bg-slate-800 rounded-lg p-4 mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Tasks</h2>
-                {showMeetingButton && game.gameStatus === "in-progress" && (
-                  <button
-                    onClick={() => handleCallMeeting("emergency")}
-                    className="bg-amongus-blue hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
-                  >
-                    Call Meeting
-                  </button>
-                )}
-              </div>
-
-              {tasks.filter(
-                (task: any) =>
-                  !task.isEmergency &&
-                  // Show tasks based on player role instead of task description
-                  currentPlayer?.playerId === task.assignedTo
-              ).length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  No tasks assigned
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tasks
-                    .filter(
-                      (task: any) =>
-                        !task.isEmergency &&
-                        currentPlayer?.playerId === task.assignedTo
-                    )
-                    .map((task: any) => (
-                      <div
-                        key={task.taskId}
-                        className={`p-4 rounded-lg cursor-pointer transition duration-200 ${
-                          task.status === "completed"
-                            ? "bg-green-900 border-2 border-green-500"
-                            : task.status === "failed"
-                            ? "bg-red-900 border-2 border-red-500"
-                            : "bg-slate-700 hover:bg-slate-600"
-                        }`}
-                        onClick={() =>
-                          task.status === "pending" && setSelectedTask(task)
-                        }
-                      >
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-bold">{task.description}</h3>
-                          <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              task.status === "completed"
-                                ? "bg-green-500"
-                                : task.status === "failed"
-                                ? "bg-red-500"
-                                : "bg-gray-500"
-                            }`}
-                          >
-                            {task.status === "completed"
-                              ? "Completed"
-                              : task.status === "failed"
-                              ? "Failed"
-                              : "Pending"}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-400 mt-1">
-                          {task.category} • {task.difficulty}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div> */}
-
-            {/* Task Modal */}
-            {selectedTask && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md">
-                  <h3 className="text-xl font-bold mb-4">
-                    {selectedTask.description}
-                  </h3>
-                  <p className="mb-4">{selectedTask.question}</p>
-
-                  {/* Show task result if available */}
-                  {taskResult && (
-                    <div
-                      className={`mb-4 p-3 rounded text-center ${
-                        taskResult.isCorrect ? "bg-green-700" : "bg-red-700"
-                      }`}
-                    >
-                      {taskResult.message}
-                    </div>
-                  )}
-
-                  <div className="space-y-2 mb-4">
-                    {selectedTask.options.map(
-                      (option: string, index: number) => (
-                        <div
-                          key={index}
-                          className={`p-3 rounded cursor-pointer ${
-                            answer === option
-                              ? "bg-amongus-blue"
-                              : "bg-slate-700 hover:bg-slate-600"
-                          }`}
-                          onClick={() => {
-                            setAnswer(option);
-                            // Clear any previous result when selecting a new option
-                            setTaskResult(null);
-                          }}
-                        >
-                          {option}
-                        </div>
-                      )
-                    )}
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    {!taskResult ? (
-                      <>
-                        <button
-                          onClick={() => {
-                            setSelectedTask(null);
-                            setTaskResult(null);
-                          }}
-                          className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleTaskSubmit}
-                          disabled={!answer}
-                          className={`py-2 px-4 rounded text-white ${
-                            answer
-                              ? "bg-amongus-green hover:bg-green-600"
-                              : "bg-gray-500 cursor-not-allowed"
-                          }`}
-                        >
-                          Submit
-                        </button>
-                      </>
-                    ) : taskResult.isCorrect ? (
-                      <button
-                        onClick={() => {
-                          setSelectedTask(null);
-                          setTaskResult(null);
-                        }}
-                        className="bg-amongus-green hover:bg-green-600 text-white py-2 px-4 rounded"
-                      >
-                        Close
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => {
-                            setTaskResult(null);
-                            setAnswer("");
-                          }}
-                          className="bg-amongus-blue hover:bg-blue-600 text-white py-2 px-4 rounded"
-                        >
-                          Try Again
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedTask(null);
-                            setTaskResult(null);
-                          }}
-                          className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Discussion/Voting Area */}
             {game.gameStatus === "discussion" && (
-              <div className="bg-slate-800 rounded-lg p-4">
-                <h2 className="text-xl font-bold mb-4">Discussion</h2>
-                <p className="mb-4">
-                  A meeting has been called. Discuss with other players and vote
-                  to eject the impostor.
+              <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50">
+                <div className="flex items-center gap-3 mb-4">
+                  <HowToVoteIcon sx={{ fontSize: 28 }} />
+                  <h2 className="text-2xl font-bold text-white">Discussion</h2>
+                </div>
+                <p className="mb-6 text-gray-300">
+                  A meeting has been called. Discuss with other players and vote to eject the impostor.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -569,26 +438,26 @@ const GamePage = () => {
                       <button
                         key={player.playerId}
                         onClick={() => vote(player.playerId)}
-                        className="bg-slate-700 hover:bg-slate-600 p-4 rounded-lg text-left"
+                        className="bg-gradient-to-br from-gray-800/80 to-slate-800/80 hover:from-gray-700/80 hover:to-slate-700/80 p-5 rounded-xl text-left transition-all duration-200 border border-gray-700/50 hover:border-gray-600/70 hover:scale-105"
                       >
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 rounded-full bg-amongus-green mr-2"></div>
-                          <span>{player.name}</span>
+                        <div className="flex items-center gap-3">
+                          <FiberManualRecordIcon sx={{ fontSize: 12, color: '#10b981' }} />
+                          <span className="font-bold text-white">{player.name}</span>
                         </div>
-                        <div className="text-sm text-gray-400 mt-1">
+                        <div className="text-sm text-gray-400 mt-2">
                           Click to vote
                         </div>
                       </button>
                     ))}
                   <button
                     onClick={() => vote("skip")}
-                    className="bg-slate-700 hover:bg-slate-600 p-4 rounded-lg text-left"
+                    className="bg-gradient-to-br from-gray-800/80 to-slate-800/80 hover:from-gray-700/80 hover:to-slate-700/80 p-5 rounded-xl text-left transition-all duration-200 border border-gray-700/50 hover:border-gray-600/70 hover:scale-105"
                   >
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full bg-gray-500 mr-2"></div>
-                      <span>Skip Vote</span>
+                    <div className="flex items-center gap-3">
+                      <FiberManualRecordIcon sx={{ fontSize: 12, color: '#6b7280' }} />
+                      <span className="font-bold text-white">Skip Vote</span>
                     </div>
-                    <div className="text-sm text-gray-400 mt-1">
+                    <div className="text-sm text-gray-400 mt-2">
                       Skip this round
                     </div>
                   </button>
@@ -598,18 +467,22 @@ const GamePage = () => {
 
             {/* Game Over */}
             {game.gameStatus === "ended" && (
-              <div className="bg-slate-800 rounded-lg p-6 text-center">
-                <h2 className="text-2xl font-bold mb-4">Game Over</h2>
-                <p className="text-xl mb-4">
+              <div className="bg-gradient-to-br from-slate-800/50 to-gray-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-8 text-center border border-gray-700/50">
+                <div className="flex justify-center mb-4">
+                  <EmojiEventsIcon sx={{ fontSize: 64, color: '#fbbf24' }} />
+                </div>
+                <h2 className="text-3xl font-black mb-4 text-white">Game Over</h2>
+                <p className="text-2xl mb-6 text-gray-300">
                   Winner:{" "}
-                  <span className="font-bold text-amongus-green">
+                  <span className="font-black text-white">
                     {game.winner === "crewmates" ? "Crewmates" : "Other Team"}
                   </span>
                 </p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="bg-amongus-blue hover:bg-blue-600 text-white py-2 px-6 rounded"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 text-white py-3 px-8 rounded-xl font-bold transition-all duration-200 hover:scale-105 border border-gray-600/50"
                 >
+                  <ReplayIcon sx={{ fontSize: 22 }} />
                   Play Again
                 </button>
               </div>
@@ -617,6 +490,117 @@ const GamePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Task Modal */}
+      {selectedTask && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gradient-to-br from-slate-800/95 to-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-gray-700/50">
+            <h3 className="text-2xl font-bold mb-4 text-white">
+              {selectedTask.description}
+            </h3>
+            <p className="mb-6 text-gray-300 text-lg">{selectedTask.question}</p>
+
+            {/* Show task result if available */}
+            {taskResult && (
+              <div
+                className={`mb-6 p-4 rounded-xl text-center font-semibold border-2 ${
+                  taskResult.isCorrect
+                    ? "bg-green-500/20 border-green-500/50 text-green-300"
+                    : "bg-red-500/20 border-red-500/50 text-red-300"
+                }`}
+              >
+                {taskResult.message}
+              </div>
+            )}
+
+            <div className="space-y-3 mb-6">
+              {selectedTask.options.map((option: string, index: number) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
+                    answer === option
+                      ? "bg-gray-700 border-gray-500 shadow-lg"
+                      : "bg-slate-700/50 border-gray-700/50 hover:bg-slate-600/50 hover:border-gray-600/50"
+                  }`}
+                  onClick={() => {
+                    setAnswer(option);
+                    setTaskResult(null);
+                  }}
+                >
+                  <span className="text-white font-medium">{option}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              {!taskResult ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setSelectedTask(null);
+                      setTaskResult(null);
+                      setAnswer("");
+                    }}
+                    className="bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 border border-gray-600/50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleTaskSubmit}
+                    disabled={!answer}
+                    className={`py-3 px-6 rounded-xl font-bold text-white transition-all duration-200 ${
+                      answer
+                        ? "bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 hover:scale-105 border border-gray-600/50"
+                        : "bg-gray-700 cursor-not-allowed opacity-50 border border-gray-600/50"
+                    }`}
+                  >
+                    Submit
+                  </button>
+                </>
+              ) : taskResult.isCorrect ? (
+                <button
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setTaskResult(null);
+                    setAnswer("");
+                  }}
+                  className="bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 text-white py-3 px-6 rounded-xl font-bold transition-all duration-200 hover:scale-105 border border-gray-600/50"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setTaskResult(null);
+                      setAnswer("");
+                    }}
+                    className="bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 border border-gray-600/50"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedTask(null);
+                      setTaskResult(null);
+                      setAnswer("");
+                    }}
+                    className="bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 border border-gray-600/50"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .delay-1000 {
+          animation-delay: 1s;
+        }
+      `}</style>
     </div>
   );
 };

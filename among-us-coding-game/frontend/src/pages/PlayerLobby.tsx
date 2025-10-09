@@ -110,26 +110,26 @@ const PlayerLobby = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Player color palette
+  // Monochrome player color palette - subtle grays
   const playerColors = [
-    "bg-red-500",
-    "bg-blue-500",
-    "bg-green-500",
-    "bg-pink-500",
-    "bg-orange-500",
-    "bg-yellow-500",
-    "bg-purple-500",
-    "bg-cyan-500",
-    "bg-lime-500",
-    "bg-indigo-500",
+    "bg-slate-600",
+    "bg-slate-700",
+    "bg-gray-600",
+    "bg-gray-700",
+    "bg-zinc-600",
+    "bg-zinc-700",
+    "bg-neutral-600",
+    "bg-neutral-700",
+    "bg-stone-600",
+    "bg-stone-700",
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-500 mb-4"></div>
-          <div className="text-2xl font-bold text-white animate-pulse">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-gray-400 mb-4"></div>
+          <div className="text-2xl font-bold text-gray-100 animate-pulse">
             Loading lobby...
           </div>
         </div>
@@ -139,7 +139,7 @@ const PlayerLobby = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex items-center justify-center p-4">
         <div className="bg-red-500/20 backdrop-blur-md border-2 border-red-500 text-white p-8 rounded-2xl max-w-md w-full shadow-2xl">
           <div className="flex justify-center mb-4">
             <WarningAmberIcon sx={{ fontSize: 64, color: '#ef4444' }} />
@@ -155,29 +155,29 @@ const PlayerLobby = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background elements */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated background elements - subtle monochrome */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-20 left-20 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
       <div className="w-full max-w-4xl relative z-10">
         {/* Header Section */}
-        <div className="bg-gradient-to-r from-purple-600/30 to-blue-600/30 backdrop-blur-xl rounded-3xl shadow-2xl p-8 mb-6 border border-purple-500/30">
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-800/50 backdrop-blur-xl rounded-3xl shadow-2xl p-8 mb-6 border border-gray-700/50">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">
+              <h1 className="text-5xl font-black text-white mb-2 tracking-tight">
                 Game Lobby
               </h1>
               <div className="flex items-center gap-3">
-                <span className="text-gray-300 text-sm">Game ID:</span>
-                <code className="bg-slate-800/60 px-4 py-2 rounded-lg font-mono text-purple-300 text-sm border border-purple-500/30">
+                <span className="text-gray-400 text-sm font-medium">Game ID:</span>
+                <code className="bg-gray-900/60 px-4 py-2 rounded-lg font-mono text-gray-300 text-sm border border-gray-700/50 tracking-wider">
                   {gameId}
                 </code>
                 <button
                   onClick={copyGameId}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2"
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 border border-gray-600/50"
                 >
                   {copied ? (
                     <>
@@ -193,11 +193,11 @@ const PlayerLobby = () => {
                 </button>
               </div>
             </div>
-            <div className="bg-slate-800/60 px-6 py-4 rounded-2xl border border-purple-500/30">
-              <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400">
+            <div className="bg-gray-900/60 px-6 py-4 rounded-2xl border border-gray-700/50 shadow-lg">
+              <div className="text-4xl font-black text-white">
                 {players.length}
               </div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider">
+              <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
                 Players
               </div>
             </div>
@@ -205,9 +205,9 @@ const PlayerLobby = () => {
 
           {/* Waiting status */}
           {players.length < 2 && (
-            <div className="mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
-              <HourglassEmptyIcon className="animate-pulse" sx={{ fontSize: 28, color: '#fbbf24' }} />
-              <span className="text-yellow-300 font-medium">
+            <div className="mt-4 bg-gray-800/40 border border-gray-600/50 rounded-xl p-4 flex items-center gap-3">
+              <HourglassEmptyIcon className="animate-pulse" sx={{ fontSize: 28, color: '#9ca3af' }} />
+              <span className="text-gray-300 font-medium">
                 Waiting for more players... (minimum 2 required)
               </span>
             </div>
@@ -215,7 +215,7 @@ const PlayerLobby = () => {
         </div>
 
         {/* Players Grid */}
-        <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-slate-700/50">
+        <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-gray-700/50">
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
             <GroupsIcon sx={{ fontSize: 32 }} />
             Players in Lobby
@@ -225,7 +225,7 @@ const PlayerLobby = () => {
             {players.map((player, index) => (
               <div
                 key={player.playerId}
-                className="group relative bg-gradient-to-br from-slate-700/50 to-slate-800/50 p-5 rounded-2xl border border-slate-600/50 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 animate-fadeIn"
+                className="group relative bg-gradient-to-br from-gray-800/80 to-slate-800/80 p-5 rounded-2xl border border-gray-700/50 hover:border-gray-500/70 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-gray-900/50 animate-fadeIn"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 {/* Player color indicator */}
@@ -233,7 +233,7 @@ const PlayerLobby = () => {
                   <div
                     className={`w-12 h-12 ${
                       playerColors[index % playerColors.length]
-                    } rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                    } rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 border-2 border-gray-600/50`}
                   >
                     <span className="text-white text-xl font-bold">
                       {player.name.charAt(0).toUpperCase()}
@@ -245,7 +245,7 @@ const PlayerLobby = () => {
                     </div>
                     {players[0]?.playerId === player.playerId && (
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="inline-flex items-center gap-1 text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-3 py-1 rounded-full font-bold shadow-md">
+                        <span className="inline-flex items-center gap-1 text-xs bg-gradient-to-r from-gray-600 to-slate-600 text-white px-3 py-1 rounded-full font-bold shadow-md border border-gray-500/30">
                           Host
                         </span>
                       </div>
@@ -275,7 +275,7 @@ const PlayerLobby = () => {
             {[...Array(Math.max(0, 6 - players.length))].map((_, index) => (
               <div
                 key={`empty-${index}`}
-                className="bg-slate-700/20 p-5 rounded-2xl border-2 border-dashed border-slate-600/50 flex items-center justify-center"
+                className="bg-gray-800/30 p-5 rounded-2xl border-2 border-dashed border-gray-700/50 flex items-center justify-center"
               >
                 <span className="text-gray-500 text-sm font-medium">
                   Waiting for player...
@@ -292,8 +292,8 @@ const PlayerLobby = () => {
                 disabled={players.length < 2}
                 className={`group relative w-full py-5 px-6 rounded-2xl font-black text-xl text-white transition-all duration-300 overflow-hidden ${
                   players.length < 2
-                    ? "bg-gray-600 cursor-not-allowed opacity-50"
-                    : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/50 active:scale-95"
+                    ? "bg-gray-700 cursor-not-allowed opacity-50 border border-gray-600/50"
+                    : "bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 hover:scale-105 hover:shadow-2xl hover:shadow-gray-900/50 active:scale-95 border border-gray-600/50"
                 }`}
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
@@ -310,7 +310,7 @@ const PlayerLobby = () => {
                   )}
                 </span>
                 {players.length >= 2 && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-full group-hover:translate-x-full animate-shimmer"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 translate-x-full group-hover:translate-x-full animate-shimmer"></div>
                 )}
               </button>
             </div>
@@ -318,7 +318,7 @@ const PlayerLobby = () => {
 
           {!isHost && players.length >= 2 && (
             <div className="mt-8 text-center">
-              <div className="inline-flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 text-blue-300 px-6 py-3 rounded-xl">
+              <div className="inline-flex items-center gap-2 bg-gray-800/40 border border-gray-600/50 text-gray-300 px-6 py-3 rounded-xl">
                 <AccessTimeIcon className="animate-pulse" sx={{ fontSize: 24 }} />
                 <span className="font-semibold">
                   Waiting for host to start the game...

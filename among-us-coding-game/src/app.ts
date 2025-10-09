@@ -24,22 +24,9 @@ server.headersTimeout = 66000; // Ensure headers timeout is greater than keep al
 const HOST = process.env.HOST || "0.0.0.0"; // Listen on all interfaces for LAN access
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
-// CORS configuration for REST API - allow LAN access
+// CORS configuration for REST API - allow all access to resolve CORS issues
 const corsOptions = {
-  origin: process.env.CLIENT_URL || [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    // Allow any LAN IP access
-    /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/, // 192.168.x.x range
-    /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/, // 10.x.x.x range
-    /^http:\/\/172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+(:\d+)?$/, // 172.16.x.x - 172.31.x.x range
-    // Local network IPs
-    `http://${HOST}:${PORT}`,
-    `http://localhost:${PORT}`,
-    `http://127.0.0.1:${PORT}`,
-  ],
+  origin: true, // Allow all origins
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],

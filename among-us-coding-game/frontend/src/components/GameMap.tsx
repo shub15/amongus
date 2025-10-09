@@ -416,15 +416,18 @@ const GameMap: React.FC<GameMapProps> = ({
   };
 
   const getAdjacentRooms = () => {
+    // Show arrows for current player's room instead of selected room
     if (
       !currentPlayer ||
-      !selectedRoom ||
-      currentPlayer.currentRoom !== selectedRoom
+      !currentPlayer.currentRoom ||
+      currentPlayer.status !== "alive"
     ) {
       return [];
     }
 
-    const currentRoom = imageMap.find((r) => r.name === selectedRoom);
+    const currentRoom = imageMap.find(
+      (r) => r.name === currentPlayer.currentRoom
+    );
     if (!currentRoom) {
       return [];
     }
@@ -448,16 +451,18 @@ const GameMap: React.FC<GameMapProps> = ({
   };
 
   const renderMovementArrows = () => {
+    // Show arrows for current player's room instead of selected room
     if (
-      !selectedRoom ||
       !currentPlayer ||
-      currentPlayer.currentRoom !== selectedRoom ||
+      !currentPlayer.currentRoom ||
       currentPlayer.status !== "alive"
     ) {
       return null;
     }
 
-    const currentRoom = imageMap.find((r) => r.name === selectedRoom);
+    const currentRoom = imageMap.find(
+      (r) => r.name === currentPlayer.currentRoom
+    );
     if (!currentRoom) return null;
 
     const adjacentRooms = getAdjacentRooms();
@@ -465,6 +470,7 @@ const GameMap: React.FC<GameMapProps> = ({
 
     return adjacentRooms.map((room) => {
       const direction = getDirection(currentRoom, room);
+      // Position arrows around the current player's room
       const arrowX = (currentRoom.center.x + room.center.x) / 2;
       const arrowY = (currentRoom.center.y + room.center.y) / 2;
 
@@ -669,7 +675,7 @@ const GameMap: React.FC<GameMapProps> = ({
                   {/* Players */}
                   {players.map(renderPlayerOnMap)}
 
-                  {/* Movement arrows */}
+                  {/* Movement arrows - always visible when player is alive */}
                   {renderMovementArrows()}
                 </svg>
               </div>
@@ -678,20 +684,27 @@ const GameMap: React.FC<GameMapProps> = ({
         )}
       </TransformWrapper>
 
-      {/* Room details panel */}
-      {selectedRoom && (
+      {/* Room details panel - now visible when player is in a room with tasks */}
+      {(selectedRoom ||
+        (currentPlayer &&
+          currentPlayer.currentRoom &&
+          getTasksForRoom(currentPlayer.currentRoom).length > 0)) && (
         <div className="bg-slate-700 rounded-lg p-4 mt-4">
           <h3 className="text-lg font-bold mb-2">
-            {imageMap.find((r) => r.name === selectedRoom)?.displayName}
+            {
+              imageMap.find(
+                (r) => r.name === (selectedRoom || currentPlayer?.currentRoom)
+              )?.displayName
+            }
           </h3>
 
           {/* Task information when player is in the room */}
-          {currentPlayer && currentPlayer.currentRoom === selectedRoom && (
+          {currentPlayer && currentPlayer.currentRoom && (
             <div className="mb-4">
               <h4 className="font-bold mb-2">Tasks in this Room:</h4>
-              {getTasksForRoom(selectedRoom).length > 0 ? (
+              {getTasksForRoom(currentPlayer.currentRoom).length > 0 ? (
                 <div className="space-y-2">
-                  {getTasksForRoom(selectedRoom).map((task) => (
+                  {getTasksForRoom(currentPlayer.currentRoom).map((task) => (
                     <div
                       key={task.taskId}
                       className={`p-3 rounded cursor-pointer hover:bg-amber-800 transition-colors ${

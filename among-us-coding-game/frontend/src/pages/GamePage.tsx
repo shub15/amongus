@@ -190,6 +190,46 @@ const GamePage = () => {
               )}
             </div>
           </div>
+          {/* Task Summary */}
+          {currentPlayer && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <div className="flex justify-between">
+                <span className="font-bold">Your Tasks:</span>
+                <div className="flex space-x-4">
+                  <span className="text-green-400">
+                    Completed:{" "}
+                    {
+                      tasks.filter(
+                        (task: any) =>
+                          task.assignedTo === currentPlayer.playerId &&
+                          task.status === "completed"
+                      ).length
+                    }
+                  </span>
+                  <span className="text-red-400">
+                    Failed:{" "}
+                    {
+                      tasks.filter(
+                        (task: any) =>
+                          task.assignedTo === currentPlayer.playerId &&
+                          task.status === "failed"
+                      ).length
+                    }
+                  </span>
+                  <span className="text-yellow-400">
+                    Pending:{" "}
+                    {
+                      tasks.filter(
+                        (task: any) =>
+                          task.assignedTo === currentPlayer.playerId &&
+                          task.status === "pending"
+                      ).length
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

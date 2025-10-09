@@ -21,6 +21,13 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add admin secret header for development environment
+    // In production, proper authentication should be used
+    if (import.meta.env.DEV) {
+      config.headers["x-admin-secret"] = "dev_secret";
+    }
+
     return config;
   },
   (error) => {
@@ -112,6 +119,8 @@ export const gameAPI = {
     api.post(`/games/${gameId}/report-body`, { reporterId, deadPlayerId }),
 
   endGame: (gameId: string) => api.post(`/games/${gameId}/end`),
+
+  deleteGame: (gameId: string) => api.delete(`/games/${gameId}`),
 
   kickPlayer: (gameId: string, playerId: string) =>
     api.post(`/games/${gameId}/kick`, { playerId }),

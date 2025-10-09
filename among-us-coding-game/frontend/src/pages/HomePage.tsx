@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { gameAPI, playerAPI } from "../services/api";
-import PersonIcon from '@mui/icons-material/Person';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import LoginIcon from '@mui/icons-material/Login';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
-import CircularProgress from '@mui/material/CircularProgress';
-import FlashAutoIcon from '@mui/icons-material/FlashAuto';
-import CloseIcon from '@mui/icons-material/Close';
-import GroupsIcon from '@mui/icons-material/Groups';
+import PersonIcon from "@mui/icons-material/Person";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import LoginIcon from "@mui/icons-material/Login";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
+import CircularProgress from "@mui/material/CircularProgress";
+import FlashAutoIcon from "@mui/icons-material/FlashAuto";
+import CloseIcon from "@mui/icons-material/Close";
+import GroupsIcon from "@mui/icons-material/Groups";
+
+// Define a simplified interface for available games
+interface AvailableGame {
+  gameId: string;
+  players: {
+    playerId: string;
+    name: string;
+  }[];
+}
+
+interface PlayerInfo {
+  playerId: string;
+  name: string;
+}
 
 const HomePage = () => {
   const [playerName, setPlayerName] = useState("");
@@ -19,7 +33,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showAvailableGames, setShowAvailableGames] = useState(false);
-  const [availableGames, setAvailableGames] = useState([]);
+  const [availableGames, setAvailableGames] = useState<AvailableGame[]>([]); // Properly typed
   const navigate = useNavigate();
 
   const handleCreateGame = async () => {
@@ -102,7 +116,7 @@ const HomePage = () => {
     }
   };
 
-  const joinAvailableGame = async (selectedGameId) => {
+  const joinAvailableGame = async (selectedGameId: string) => {
     if (!playerName.trim()) {
       setError("Please enter your name");
       return;
@@ -113,7 +127,10 @@ const HomePage = () => {
 
     try {
       // Register the player and add them to the game at the same time
-      const playerResponse = await playerAPI.register(playerName, selectedGameId);
+      const playerResponse = await playerAPI.register(
+        playerName,
+        selectedGameId
+      );
       const { player, token } = playerResponse.data;
 
       // Save token to localStorage
@@ -144,14 +161,16 @@ const HomePage = () => {
         <div className="text-center mb-8 animate-fadeIn">
           <div className="flex justify-center mb-4">
             <div className="bg-gradient-to-br from-slate-800/50 to-gray-800/50 backdrop-blur-xl p-6 rounded-3xl border border-gray-700/50 shadow-2xl">
-              <SportsEsportsIcon sx={{ fontSize: 64, color: '#ffffff' }} />
+              <SportsEsportsIcon sx={{ fontSize: 64, color: "#ffffff" }} />
             </div>
           </div>
           <h1 className="text-5xl font-black text-white mb-3 tracking-tight">
             Among Us
           </h1>
           <p className="text-xl text-gray-400 font-semibold">Coding Game</p>
-          <p className="text-sm text-gray-500 mt-2">Test your coding skills while hunting impostors</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Test your coding skills while hunting impostors
+          </p>
         </div>
 
         {/* Main Card */}
@@ -194,7 +213,7 @@ const HomePage = () => {
                 <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
                   {loading ? (
                     <>
-                      <CircularProgress size={24} sx={{ color: 'white' }} />
+                      <CircularProgress size={24} sx={{ color: "white" }} />
                       Creating...
                     </>
                   ) : (
@@ -218,7 +237,7 @@ const HomePage = () => {
                 <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
                   {loading ? (
                     <>
-                      <CircularProgress size={24} sx={{ color: 'white' }} />
+                      <CircularProgress size={24} sx={{ color: "white" }} />
                       Loading...
                     </>
                   ) : (
@@ -262,7 +281,7 @@ const HomePage = () => {
                   <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
                     {loading ? (
                       <>
-                        <CircularProgress size={24} sx={{ color: 'white' }} />
+                        <CircularProgress size={24} sx={{ color: "white" }} />
                         Joining...
                       </>
                     ) : (
@@ -298,8 +317,10 @@ const HomePage = () => {
             <div className="bg-gradient-to-br from-slate-800/80 to-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-700/50 w-full max-w-md max-h-[80vh] overflow-hidden">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-white">Available Games</h2>
-                  <button 
+                  <h2 className="text-2xl font-bold text-white">
+                    Available Games
+                  </h2>
+                  <button
                     onClick={() => setShowAvailableGames(false)}
                     className="text-gray-400 hover:text-white transition-colors"
                   >
@@ -309,7 +330,9 @@ const HomePage = () => {
 
                 <div className="mb-4 text-gray-300">
                   {availableGames.length === 0 ? (
-                    <p className="text-center py-4">No available games found. Create a new game!</p>
+                    <p className="text-center py-4">
+                      No available games found. Create a new game!
+                    </p>
                   ) : (
                     <p className="text-center">Select a game to join</p>
                   )}
@@ -317,16 +340,19 @@ const HomePage = () => {
 
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
                   {availableGames.map((game) => (
-                    <div 
+                    <div
                       key={game.gameId}
                       className="bg-gray-900/60 hover:bg-gray-800/60 border border-gray-700/50 rounded-xl p-4 transition-all duration-200 cursor-pointer group"
                       onClick={() => joinAvailableGame(game.gameId)}
                     >
                       <div className="flex justify-between items-center">
                         <div>
-                          <h3 className="font-bold text-white text-lg">{game.gameId}</h3>
+                          <h3 className="font-bold text-white text-lg">
+                            {game.gameId}
+                          </h3>
                           <p className="text-gray-400 text-sm">
-                            {game.players.length} player{game.players.length !== 1 ? 's' : ''} waiting
+                            {game.players.length} player
+                            {game.players.length !== 1 ? "s" : ""} waiting
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -335,19 +361,21 @@ const HomePage = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       {game.players.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-gray-700/50">
                           <p className="text-gray-400 text-xs mb-1">Players:</p>
                           <div className="flex flex-wrap gap-2">
-                            {game.players.slice(0, 3).map((player) => (
-                              <span 
-                                key={player.playerId} 
-                                className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded-lg text-xs"
-                              >
-                                {player.name}
-                              </span>
-                            ))}
+                            {game.players
+                              .slice(0, 3)
+                              .map((player: PlayerInfo) => (
+                                <span
+                                  key={player.playerId}
+                                  className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded-lg text-xs"
+                                >
+                                  {player.name}
+                                </span>
+                              ))}
                             {game.players.length > 3 && (
                               <span className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded-lg text-xs">
                                 +{game.players.length - 3} more

@@ -97,6 +97,13 @@ export const setGameRoutes = (app: Application): void => {
     authenticateToken,
     gameController.endGame
   );
+  router.delete(
+    "/:gameId",
+    validateGameId,
+    authenticateToken,
+    isAdmin,
+    gameController.deleteGame
+  );
 
   router.post(
     "/:gameId/kick",

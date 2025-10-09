@@ -29,7 +29,7 @@ const corsOptions = {
   origin: true, // Allow all origins
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-secret"], // Added x-admin-secret header
   optionsSuccessStatus: 200,
   maxAge: 86400, // Cache preflight requests for 24 hours
 };

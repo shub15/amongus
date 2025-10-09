@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 
 interface Room {
   name: string;
@@ -18,7 +22,7 @@ interface Player {
   status: "alive" | "dead" | "disconnected";
   currentRoom: string;
   isVenting: boolean;
-  tasks?: string[]; // Add tasks property as optional
+  tasks?: string[];
 }
 
 interface GameMapProps {
@@ -27,12 +31,12 @@ interface GameMapProps {
   playerRole: "crewmate" | "imposter" | "ghost";
   players: Player[];
   map: Room[];
-  tasks: any[]; // Add tasks prop
+  tasks: any[];
   onMoveToRoom: (roomName: string) => void;
   onUseVent: (targetRoom: string) => void;
   onKillPlayer: (targetId: string) => void;
   onReportBody: (deadPlayerId: string) => void;
-  onTaskSelect?: (task: any) => void; // Add task selection handler
+  onTaskSelect?: (task: any) => void;
 }
 
 const ROOM_DEFINITIONS: Record<
@@ -146,7 +150,7 @@ const GameMap: React.FC<GameMapProps> = ({
   onUseVent,
   onKillPlayer,
   onReportBody,
-  onTaskSelect, // Add task selection handler
+  onTaskSelect,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
@@ -239,19 +243,14 @@ const GameMap: React.FC<GameMapProps> = ({
     onReportBody(deadPlayerId);
   };
 
-  // Track when player enters a new room with tasks
   useEffect(() => {
     if (currentPlayer && currentPlayer.currentRoom) {
       const roomName = currentPlayer.currentRoom;
 
-      // If player hasn't visited this room before and it has tasks, show notification
       if (!visitedRooms.has(roomName)) {
         const roomTasks = getTasksForRoom(roomName);
         if (roomTasks.length > 0) {
-          // Add room to visited rooms
           setVisitedRooms((prev) => new Set(prev).add(roomName));
-
-          // Show notification (in a real app, this would be a toast notification)
           console.log(
             `You have ${roomTasks.length} task${
               roomTasks.length > 1 ? "s" : ""
@@ -262,7 +261,6 @@ const GameMap: React.FC<GameMapProps> = ({
     }
   }, [currentPlayer, visitedRooms, tasks, imageMap]);
 
-  // Get tasks for a specific room
   const getTasksForRoom = (roomName: string) => {
     const room = map?.find((r: any) => r.name === roomName);
     if (!room || !room.tasks) return [];
@@ -272,20 +270,18 @@ const GameMap: React.FC<GameMapProps> = ({
     return tasks.filter(
       (task: any) =>
         playerTaskIds.includes(task.taskId) &&
-        // Show all tasks regardless of status (pending, completed, failed)
         room.tasks?.includes(task.taskId) &&
-        // Show tasks based on player role instead of task description
         currentPlayer?.playerId === task.assignedTo
     );
   };
 
-  // Render task indicators on the map
+  // Enhanced task indicators with larger size and better visibility
+  // Enhanced task indicators with color change based on completion status
   const renderTaskIndicators = () => {
     return imageMap.map((room) => {
       const roomTasks = getTasksForRoom(room.name);
       if (roomTasks.length === 0) return null;
 
-      // Count different task statuses
       const pendingTasks = roomTasks.filter(
         (task) => task.status === "pending"
       ).length;
@@ -296,127 +292,260 @@ const GameMap: React.FC<GameMapProps> = ({
         (task) => task.status === "failed"
       ).length;
 
-      // Position task indicator at a slightly offset position from room center
-      const indicatorX = room.center.x + 15;
-      const indicatorY = room.center.y - 15;
+      // Check if all tasks are completed
+      const allTasksCompleted =
+        roomTasks.length > 0 && completedTasks === roomTasks.length;
+
+      // Determine indicator color based on task status
+      const indicatorColor = allTasksCompleted ? "#10b981" : "#f59e0b"; // Green if all completed, yellow otherwise
+      const glowColor = allTasksCompleted
+        ? "rgba(16, 185, 129, 0.3)"
+        : "rgba(245, 158, 11, 0.3)";
+      const strokeColor = allTasksCompleted ? "#059669" : "#ffffff";
+
+      const indicatorX = room.center.x + 40;
+      const indicatorY = room.center.y - 40;
 
       return (
         <g key={`tasks-${room.name}`}>
+          {/* Glow effect for better visibility */}
           <circle
             cx={indicatorX}
             cy={indicatorY}
-            r="12"
-            fill="#f59e0b"
-            stroke="#d97706"
-            strokeWidth="2"
+            r="35"
+            fill={glowColor}
             style={{ pointerEvents: "none" }}
           />
-          <text
-            x={indicatorX}
-            y={indicatorY}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="white"
-            fontSize="12"
-            fontWeight="bold"
+          <circle
+            cx={indicatorX}
+            cy={indicatorY}
+            r="28"
+            fill={indicatorColor}
+            stroke={strokeColor}
+            strokeWidth="4"
             style={{ pointerEvents: "none" }}
-          >
-            {roomTasks.length}
-          </text>
+          />
+
+          {/* Show checkmark if all tasks completed, otherwise show count */}
+          {allTasksCompleted ? (
+            <text
+              x={indicatorX}
+              y={indicatorY}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="white"
+              fontSize="24"
+              fontWeight="bold"
+              style={{ pointerEvents: "none" }}
+            >
+              ✓
+            </text>
+          ) : (
+            <text
+              x={indicatorX}
+              y={indicatorY}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="white"
+              fontSize="24"
+              fontWeight="bold"
+              style={{ pointerEvents: "none" }}
+            >
+              {roomTasks.length}
+            </text>
+          )}
+
           <title>
-            {roomTasks.length} task{roomTasks.length > 1 ? "s" : ""} available
-            {pendingTasks > 0 ? ` (${pendingTasks} pending)` : ""}
-            {completedTasks > 0 ? ` (${completedTasks} completed)` : ""}
-            {failedTasks > 0 ? ` (${failedTasks} failed)` : ""}
+            {allTasksCompleted
+              ? `All ${roomTasks.length} task${
+                  roomTasks.length > 1 ? "s" : ""
+                } completed!`
+              : `${roomTasks.length} task${
+                  roomTasks.length > 1 ? "s" : ""
+                } available
+${pendingTasks > 0 ? ` (${pendingTasks} pending)` : ""}${
+                  completedTasks > 0 ? ` (${completedTasks} completed)` : ""
+                }${failedTasks > 0 ? ` (${failedTasks} failed)` : ""}`}
           </title>
         </g>
       );
     });
   };
 
-  // Render player on map
+  // Enhanced player rendering with larger names and clearer position indicators
   const renderPlayerOnMap = (player: Player) => {
     const room = imageMap.find((r) => r.name === player.currentRoom);
     if (!room) return null;
 
-    // Position player name at the center of the room
-    const playerX = room.center.x;
-    const playerY = room.center.y;
+    // Calculate player positions to avoid overlap
+    const playersInSameRoom = players.filter(
+      (p) => p.currentRoom === player.currentRoom
+    );
+    const playerIndex = playersInSameRoom.findIndex(
+      (p) => p.playerId === player.playerId
+    );
+    const totalPlayers = playersInSameRoom.length;
+
+    // Offset players in the same room
+    const offsetX =
+      totalPlayers > 1 ? (playerIndex - (totalPlayers - 1) / 2) * 80 : 0;
+    const offsetY = totalPlayers > 2 ? Math.floor(playerIndex / 3) * 50 : 0;
+
+    const playerX = room.center.x + offsetX;
+    const playerY = room.center.y + offsetY;
     const isMe = player.playerId === playerId;
-    const size = 1;
 
     return (
       <g key={player.playerId}>
         <title>{`${player.name} (${player.role})`}</title>
 
+        {/* Player position indicator - larger and more visible */}
         {isMe && (
-          <polygon
-            points={`${playerX},${playerY - 25 * size} ${playerX - 12 * size},${
-              playerY - 5 * size
-            } ${playerX + 12 * size},${playerY - 5 * size}`}
-            fill={
-              player.role === "imposter"
-                ? "#ef4444"
-                : player.role === "crewmate"
-                ? "#fbbf24"
-                : "#6b7280"
-            }
-            stroke="#ffffff"
-            strokeWidth="5"
-            pointerEvents="none"
-          />
+          <>
+            {/* Pulsing glow for current player */}
+            <circle
+              cx={playerX}
+              cy={playerY}
+              r="55"
+              fill="rgba(251, 191, 36, 0.2)"
+              style={{ pointerEvents: "none" }}
+            >
+              <animate
+                attributeName="r"
+                values="55;65;55"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.2;0.4;0.2"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+            </circle>
+
+            {/* Large arrow pointing down at player */}
+            <polygon
+              points={`${playerX},${playerY - 60} ${playerX - 25},${
+                playerY - 25
+              } ${playerX + 25},${playerY - 25}`}
+              fill="#fbbf24"
+              stroke="#ffffff"
+              strokeWidth="5"
+              pointerEvents="none"
+            />
+          </>
         )}
 
-        <text
-          x={playerX}
-          y={playerY}
-          textAnchor="middle"
+        {/* Player background circle for better text readability */}
+        <circle
+          cx={playerX}
+          cy={playerY}
+          r="40"
           fill={
-            player.role === "imposter"
+            player.status === "dead"
+              ? "#6b7280"
+              : player.role === "imposter"
               ? "#ef4444"
-              : player.role === "crewmate"
-              ? "#3b82f6"
-              : "#6b7280"
+              : "#3b82f6"
           }
           stroke="#ffffff"
-          strokeWidth="1"
-          fontSize="14"
+          strokeWidth="4"
+          opacity="0.9"
+          pointerEvents="none"
+        />
+
+        {/* Player name - larger and more readable */}
+        <text
+          x={playerX}
+          y={playerY - 50}
+          textAnchor="middle"
+          fill="#ffffff"
+          stroke={player.status === "dead" ? "#6b7280" : "#000000"}
+          strokeWidth="3"
+          fontSize="22"
           fontWeight="bold"
           pointerEvents="none"
+          paintOrder="stroke"
         >
           {player.name}
         </text>
 
+        {/* Player initials in circle */}
+        <text
+          x={playerX}
+          y={playerY + 8}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#ffffff"
+          fontSize="28"
+          fontWeight="bold"
+          pointerEvents="none"
+        >
+          {player.name.substring(0, 2).toUpperCase()}
+        </text>
+
+        {/* Status badges - larger and more visible */}
         {player.status === "dead" && (
-          <text
-            x={playerX}
-            y={playerY + 15}
-            textAnchor="middle"
-            fill="#9ca3af"
-            fontSize="10"
-            pointerEvents="none"
-          >
-            (DEAD)
-          </text>
+          <g>
+            <rect
+              x={playerX - 35}
+              y={playerY + 50}
+              width="70"
+              height="28"
+              rx="14"
+              fill="#ef4444"
+              stroke="#ffffff"
+              strokeWidth="3"
+              pointerEvents="none"
+            />
+            <text
+              x={playerX}
+              y={playerY + 65}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#ffffff"
+              fontSize="14"
+              fontWeight="bold"
+              pointerEvents="none"
+            >
+              DEAD
+            </text>
+          </g>
         )}
+
         {player.isVenting && (
-          <text
-            x={playerX}
-            y={playerY + 30}
-            textAnchor="middle"
-            fill="#a855f7"
-            fontSize="10"
-            pointerEvents="none"
-          >
-            (VENTING)
-          </text>
+          <g>
+            <rect
+              x={playerX - 50}
+              y={playerY + 50}
+              width="100"
+              height="28"
+              rx="14"
+              fill="#a855f7"
+              stroke="#ffffff"
+              strokeWidth="3"
+              pointerEvents="none"
+            />
+            <text
+              x={playerX}
+              y={playerY + 65}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#ffffff"
+              fontSize="14"
+              fontWeight="bold"
+              pointerEvents="none"
+            >
+              VENTING
+            </text>
+          </g>
         )}
       </g>
     );
   };
 
   const getAdjacentRooms = () => {
-    // Show arrows for current player's room instead of selected room
     if (
       !currentPlayer ||
       !currentPlayer.currentRoom ||
@@ -450,8 +579,8 @@ const GameMap: React.FC<GameMapProps> = ({
     }
   };
 
+  // Enhanced movement arrows - larger and more visible
   const renderMovementArrows = () => {
-    // Show arrows for current player's room instead of selected room
     if (
       !currentPlayer ||
       !currentPlayer.currentRoom ||
@@ -470,7 +599,6 @@ const GameMap: React.FC<GameMapProps> = ({
 
     return adjacentRooms.map((room) => {
       const direction = getDirection(currentRoom, room);
-      // Position arrows around the current player's room
       const arrowX = (currentRoom.center.x + room.center.x) / 2;
       const arrowY = (currentRoom.center.y + room.center.y) / 2;
 
@@ -481,21 +609,34 @@ const GameMap: React.FC<GameMapProps> = ({
           className="cursor-pointer"
           style={{ pointerEvents: "all" }}
         >
+          {/* Glow effect */}
+          <circle cx={arrowX} cy={arrowY} r="85" fill="rgba(59, 130, 246, 0.3)">
+            <animate
+              attributeName="r"
+              values="85;95;85"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+          </circle>
+
+          {/* Main circle */}
           <circle
             cx={arrowX}
             cy={arrowY}
-            r="50"
+            r="40"
             fill="#3b82f6"
-            stroke="#1d4ed8"
-            strokeWidth="2"
+            stroke="#ffffff"
+            strokeWidth="5"
           />
+
+          {/* Arrow symbol */}
           <text
             x={arrowX}
             y={arrowY}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="white"
-            fontSize="50"
+            fontSize="70"
             fontWeight="bold"
             pointerEvents="none"
           >
@@ -507,15 +648,67 @@ const GameMap: React.FC<GameMapProps> = ({
               ? "←"
               : "→"}
           </text>
+
+          {/* Room name label */}
+          <rect
+            x={arrowX - 60}
+            y={arrowY + 85}
+            width="120"
+            height="30"
+            rx="15"
+            fill="rgba(0, 0, 0, 0.8)"
+            stroke="#ffffff"
+            strokeWidth="2"
+            pointerEvents="none"
+          />
+          <text
+            x={arrowX}
+            y={arrowY + 100}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="white"
+            fontSize="14"
+            fontWeight="bold"
+            pointerEvents="none"
+          >
+            {room.displayName}
+          </text>
+
           <title>Move to {room.displayName}</title>
         </g>
       );
     });
   };
 
+  // Get players in current room (used for always-visible player list)
+  const getPlayersInCurrentRoom = () => {
+    if (!currentPlayer || !currentPlayer.currentRoom) {
+      return [];
+    }
+
+    return players.filter(
+      (player) => player.currentRoom === currentPlayer.currentRoom
+    );
+  };
+
   return (
-    <div className="bg-slate-800 rounded-lg p-4">
-      <h2 className="text-xl font-bold mb-4">Ship Map</h2>
+    <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50">
+      <h2 className="text-2xl font-bold mb-4 text-white flex items-center gap-3">
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+          ></path>
+        </svg>
+        Ship Map
+      </h2>
 
       <TransformWrapper
         initialScale={1}
@@ -528,63 +721,27 @@ const GameMap: React.FC<GameMapProps> = ({
       >
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
-            {/* Zoom Controls */}
-            <div className="flex gap-2 mb-2">
+            {/* Enhanced Zoom Controls */}
+            <div className="flex gap-3 mb-4">
               <button
                 onClick={() => zoomIn()}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                className="flex items-center gap-2 bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 text-white px-5 py-3 rounded-xl font-semibold transition-all duration-200 border border-gray-600/50 hover:scale-105"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"
-                  ></path>
-                </svg>
+                <ZoomInIcon sx={{ fontSize: 20 }} />
                 Zoom In
               </button>
               <button
                 onClick={() => zoomOut()}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                className="flex items-center gap-2 bg-gradient-to-r from-gray-700 to-slate-700 hover:from-gray-600 hover:to-slate-600 text-white px-5 py-3 rounded-xl font-semibold transition-all duration-200 border border-gray-600/50 hover:scale-105"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"
-                  ></path>
-                </svg>
+                <ZoomOutIcon sx={{ fontSize: 20 }} />
                 Zoom Out
               </button>
               <button
                 onClick={() => resetTransform()}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                className="flex items-center gap-2 bg-gray-800/60 hover:bg-gray-700/60 text-white px-5 py-3 rounded-xl font-semibold transition-all duration-200 border border-gray-700/50 hover:scale-105"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  ></path>
-                </svg>
+                <RestartAltIcon sx={{ fontSize: 20 }} />
                 Reset
               </button>
             </div>
@@ -594,6 +751,8 @@ const GameMap: React.FC<GameMapProps> = ({
                 width: "100%",
                 height: "800px",
                 maxHeight: "calc(100vh - 200px)",
+                borderRadius: "1rem",
+                overflow: "hidden",
               }}
               contentStyle={{
                 width: "100%",
@@ -615,7 +774,7 @@ const GameMap: React.FC<GameMapProps> = ({
                   style={{ zIndex: 1, pointerEvents: "none" }}
                 />
 
-                {/* SVG overlay for highlights, players, and interactive elements */}
+                {/* SVG overlay */}
                 <svg
                   className="absolute top-0 left-0 w-full h-full"
                   viewBox="0 0 1920 1080"
@@ -648,10 +807,17 @@ const GameMap: React.FC<GameMapProps> = ({
                         ].coordinates.join(",")}
                         fill="rgba(59, 130, 246, 0.3)"
                         stroke="#3b82f6"
-                        strokeWidth="3"
-                        strokeDasharray="5,5"
+                        strokeWidth="5"
+                        strokeDasharray="10,5"
                         style={{ pointerEvents: "none" }}
-                      />
+                      >
+                        <animate
+                          attributeName="stroke-opacity"
+                          values="1;0.5;1"
+                          dur="2s"
+                          repeatCount="indefinite"
+                        />
+                      </polygon>
                     )}
 
                   {/* Highlight selected room */}
@@ -664,7 +830,7 @@ const GameMap: React.FC<GameMapProps> = ({
                         )}
                         fill="rgba(34, 197, 94, 0.2)"
                         stroke="#22c55e"
-                        strokeWidth="3"
+                        strokeWidth="5"
                         style={{ pointerEvents: "none" }}
                       />
                     )}
@@ -675,7 +841,7 @@ const GameMap: React.FC<GameMapProps> = ({
                   {/* Players */}
                   {players.map(renderPlayerOnMap)}
 
-                  {/* Movement arrows - always visible when player is alive */}
+                  {/* Movement arrows */}
                   {renderMovementArrows()}
                 </svg>
               </div>
@@ -684,150 +850,144 @@ const GameMap: React.FC<GameMapProps> = ({
         )}
       </TransformWrapper>
 
-      {/* Room details panel - now visible when player is in a room with tasks */}
-      {(selectedRoom ||
-        (currentPlayer &&
-          currentPlayer.currentRoom &&
-          getTasksForRoom(currentPlayer.currentRoom).length > 0)) && (
-        <div className="bg-slate-700 rounded-lg p-4 mt-4">
-          <h3 className="text-lg font-bold mb-2">
+      {/* Always show players in current room without requiring click */}
+      {currentPlayer && currentPlayer.currentRoom && (
+        <div className="bg-gradient-to-br from-gray-800/80 to-slate-800/80 rounded-xl p-6 mt-6 border border-gray-700/50">
+          <h3 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <AssignmentIcon sx={{ fontSize: 24 }} />
             {
-              imageMap.find(
-                (r) => r.name === (selectedRoom || currentPlayer?.currentRoom)
-              )?.displayName
-            }
+              imageMap.find((r) => r.name === currentPlayer.currentRoom)
+                ?.displayName
+            }{" "}
+            - Players
           </h3>
 
-          {/* Task information when player is in the room */}
-          {currentPlayer && currentPlayer.currentRoom && (
-            <div className="mb-4">
-              <h4 className="font-bold mb-2">Tasks in this Room:</h4>
-              {getTasksForRoom(currentPlayer.currentRoom).length > 0 ? (
-                <div className="space-y-2">
-                  {getTasksForRoom(currentPlayer.currentRoom).map((task) => (
-                    <div
-                      key={task.taskId}
-                      className={`p-3 rounded cursor-pointer hover:bg-amber-800 transition-colors ${
-                        task.assignedTo === currentPlayer.playerId
-                          ? task.status === "completed"
-                            ? "bg-green-900" // Green for completed tasks
+          {/* Task information for current room */}
+          <div className="mb-6">
+            <h4 className="font-bold mb-3 text-gray-300 uppercase tracking-wider text-sm">
+              Tasks in this Room:
+            </h4>
+            {getTasksForRoom(currentPlayer.currentRoom).length > 0 ? (
+              <div className="space-y-3">
+                {getTasksForRoom(currentPlayer.currentRoom).map((task) => (
+                  <div
+                    key={task.taskId}
+                    className={`p-4 rounded-xl cursor-pointer hover:scale-105 transition-all duration-200 border-2 ${
+                      task.assignedTo === currentPlayer.playerId
+                        ? task.status === "completed"
+                          ? "bg-green-500/20 border-green-500/50 hover:bg-green-500/30"
+                          : task.status === "failed"
+                          ? "bg-red-500/20 border-red-500/50 hover:bg-red-500/30"
+                          : "bg-yellow-500/20 border-yellow-500/50 hover:bg-yellow-500/30"
+                        : "bg-gray-700/30 border-gray-600/50 cursor-not-allowed"
+                    }`}
+                    onClick={() => {
+                      if (
+                        task.assignedTo === currentPlayer.playerId &&
+                        task.status === "pending" &&
+                        onTaskSelect
+                      ) {
+                        onTaskSelect(task);
+                      }
+                    }}
+                  >
+                    <div className="font-bold text-white text-lg mb-2">
+                      {task.description}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-300">
+                        {task.category} • {task.difficulty}
+                      </div>
+                      <div
+                        className={`text-xs px-3 py-1.5 rounded-lg font-bold ${
+                          task.status === "completed"
+                            ? "bg-green-500 text-white"
                             : task.status === "failed"
-                            ? "bg-red-900" // Red for failed tasks
-                            : "bg-amber-900" // Amber for pending tasks
-                          : "bg-gray-700 cursor-not-allowed"
-                      }`}
-                      onClick={() => {
-                        // Only allow players to select their own tasks if they are pending
-                        if (
-                          task.assignedTo === currentPlayer.playerId &&
-                          task.status === "pending" &&
-                          onTaskSelect
-                        ) {
-                          onTaskSelect(task);
-                        } else if (
-                          task.assignedTo === currentPlayer.playerId &&
-                          task.status === "pending"
-                        ) {
-                          alert(`Task: ${task.description}
-
-Question: ${task.question}
-
-Click 'OK' to answer this task.`);
-                        } else if (task.assignedTo !== currentPlayer.playerId) {
-                          alert("This task is not assigned to you!");
-                        } else if (task.status !== "pending") {
-                          // Show task status for completed/failed tasks
-                          alert(`Task: ${task.description}
-
-Status: ${task.status === "completed" ? "Completed" : "Failed"}
-
-You have already ${
-                            task.status === "completed"
-                              ? "completed"
-                              : "attempted"
-                          } this task.`);
-                        }
-                      }}
-                    >
-                      <div className="font-medium">{task.description}</div>
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm text-amber-200">
-                          {task.category} • {task.difficulty}
-                        </div>
-                        <div
-                          className={`text-xs px-2 py-1 rounded ${
-                            task.status === "completed"
-                              ? "bg-green-500"
-                              : task.status === "failed"
-                              ? "bg-red-500"
-                              : "bg-gray-500"
-                          }`}
-                        >
-                          {task.status === "completed"
-                            ? "Completed"
-                            : task.status === "failed"
-                            ? "Failed"
-                            : "Pending"}
-                        </div>
+                            ? "bg-red-500 text-white"
+                            : "bg-gray-600 text-white"
+                        }`}
+                      >
+                        {task.status === "completed"
+                          ? "✓ Completed"
+                          : task.status === "failed"
+                          ? "✗ Failed"
+                          : "○ Pending"}
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400">No tasks available in this room</p>
-              )}
-            </div>
-          )}
-
-          {/* Players in room */}
-          <div className="mb-4">
-            <h4 className="font-bold mb-2">Players in Room:</h4>
-            {playersInRoom.length > 0 ? (
-              playersInRoom.map((player) => {
-                const isMe = player.playerId === playerId;
-                return (
-                  <div
-                    key={player.playerId}
-                    className={`p-2 rounded mb-2 flex items-center ${
-                      player.status === "dead"
-                        ? "bg-red-900"
-                        : player.role === "imposter"
-                        ? "bg-red-700"
-                        : "bg-blue-700"
-                    }`}
-                  >
-                    <div
-                      className={`w-3 h-3 rounded-full mr-2 ${
-                        player.status === "alive"
-                          ? "bg-green-400"
-                          : "bg-gray-400"
-                      }`}
-                    ></div>
-                    <span className={isMe ? "font-bold" : ""}>
-                      {player.name} {isMe && "(You)"}
-                    </span>
-                    {player.isVenting && (
-                      <span className="ml-2 text-xs bg-purple-500 px-1 rounded">
-                        VENTING
-                      </span>
-                    )}
-                    {player.status === "dead" && (
-                      <span className="ml-2 text-xs bg-gray-500 px-1 rounded">
-                        DEAD
-                      </span>
-                    )}
                   </div>
-                );
-              })
+                ))}
+              </div>
             ) : (
-              <p className="text-gray-400">No players in this room</p>
+              <p className="text-gray-400 text-center py-4">
+                No tasks available in this room
+              </p>
             )}
           </div>
 
-          {currentPlayer && currentPlayer.status === "alive" && (
+          {/* Players in current room - always visible */}
+          <div className="mb-4">
+            <h4 className="font-bold mb-3 text-gray-300 uppercase tracking-wider text-sm">
+              Players in Room:
+            </h4>
+            {getPlayersInCurrentRoom().length > 0 ? (
+              <div className="space-y-2">
+                {getPlayersInCurrentRoom().map((player) => {
+                  const isMe = player.playerId === playerId;
+                  return (
+                    <div
+                      key={player.playerId}
+                      className={`p-4 rounded-xl flex items-center border-2 transition-all duration-200 ${
+                        player.status === "dead"
+                          ? "bg-red-500/20 border-red-500/50"
+                          : isMe
+                          ? "bg-blue-500/20 border-blue-500/50"
+                          : "bg-gray-700/30 border-gray-600/50"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full mr-3 ${
+                          player.status === "alive"
+                            ? "bg-green-400"
+                            : "bg-gray-400"
+                        }`}
+                      >
+                        {player.status === "alive" && (
+                          <div className="w-4 h-4 rounded-full bg-green-400 animate-ping"></div>
+                        )}
+                      </div>
+                      <span
+                        className={`font-bold text-white ${
+                          isMe ? "text-lg" : ""
+                        }`}
+                      >
+                        {player.name} {isMe && "(You)"}
+                      </span>
+                      <div className="ml-auto flex gap-2">
+                        {player.isVenting && (
+                          <span className="text-xs bg-purple-500 text-white px-3 py-1 rounded-lg font-bold">
+                            VENTING
+                          </span>
+                        )}
+                        {player.status === "dead" && (
+                          <span className="text-xs bg-gray-500 text-white px-3 py-1 rounded-lg font-bold">
+                            DEAD
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-center py-4">
+                No players in this room
+              </p>
+            )}
+          </div>
+
+          {/* {currentPlayer && currentPlayer.status === "alive" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {/* Temporarily commented out impostor elements for hidden role game design */}
-              {/* {currentPlayer.role === "imposter" && (
+               {currentPlayer.role === "imposter" && (
                 <button
                   onClick={handleUseVent}
                   disabled={ventCooldown > 0}
@@ -854,7 +1014,7 @@ You have already ${
                 </button>
               )} */}
 
-              {/* {canKill && currentPlayer.role === "imposter" && (
+          {/* {canKill && currentPlayer.role === "imposter" && (
                 <button
                   onClick={() => {
                     const target = playersInRoom.find(
@@ -888,52 +1048,30 @@ You have already ${
                 </button>
               )} */}
 
-              {canReport && currentPlayer.role === "crewmate" && (
-                <button
-                  onClick={() => {
-                    if (deadPlayersInRoom.length > 0) {
-                      handleReportBody(deadPlayersInRoom[0].playerId);
-                    }
-                  }}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-3 rounded text-sm flex items-center justify-center"
-                >
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                    ></path>
-                  </svg>
-                  Report Body
-                </button>
-              )}
-            </div>
-          )}
-
-          {deadPlayersInRoom.length > 0 && (
-            <div className="mt-4">
-              <h4 className="font-bold mb-2">Dead Players:</h4>
-              {deadPlayersInRoom.map((player) => (
-                <div
-                  key={player.playerId}
-                  className="bg-red-900 p-2 rounded mb-2"
-                >
-                  <span>{player.name}</span>
-                  <button
-                    onClick={() => handleReportBody(player.playerId)}
-                    className="ml-2 bg-yellow-600 hover:bg-yellow-700 text-white text-xs py-1 px-2 rounded"
-                  >
-                    Report
-                  </button>
-                </div>
-              ))}
-            </div>
+          {canReport && currentPlayer.role === "crewmate" && (
+            <button
+              onClick={() => {
+                if (deadPlayersInRoom.length > 0) {
+                  handleReportBody(deadPlayersInRoom[0].playerId);
+                }
+              }}
+              className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white py-4 px-6 rounded-xl text-lg font-bold transition-all duration-200 hover:scale-105 border border-yellow-500/50 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                ></path>
+              </svg>
+              Report Body
+            </button>
           )}
         </div>
       )}

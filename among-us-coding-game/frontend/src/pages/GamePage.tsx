@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useGameState } from "../hooks/useGameState";
 import GameMap from "../components/GameMap";
-import GroupsIcon from '@mui/icons-material/Groups';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import PendingIcon from '@mui/icons-material/Pending';
-import CampaignIcon from '@mui/icons-material/Campaign';
-import TimerIcon from '@mui/icons-material/Timer';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import HowToVoteIcon from '@mui/icons-material/HowToVote';
-import ReplayIcon from '@mui/icons-material/Replay';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import GroupsIcon from "@mui/icons-material/Groups";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import PendingIcon from "@mui/icons-material/Pending";
+import CampaignIcon from "@mui/icons-material/Campaign";
+import TimerIcon from "@mui/icons-material/Timer";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+import HowToVoteIcon from "@mui/icons-material/HowToVote";
+import ReplayIcon from "@mui/icons-material/Replay";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 const GamePage = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -99,7 +99,7 @@ const GamePage = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex items-center justify-center p-4">
         <div className="bg-red-500/20 backdrop-blur-md border-2 border-red-500 text-white p-8 rounded-2xl max-w-md w-full shadow-2xl">
           <div className="flex justify-center mb-4">
-            <WarningAmberIcon sx={{ fontSize: 64, color: '#ef4444' }} />
+            <WarningAmberIcon sx={{ fontSize: 64, color: "#ef4444" }} />
           </div>
           <h2 className="text-2xl font-bold mb-2 text-center">Error</h2>
           <p className="text-center">{error}</p>
@@ -193,23 +193,33 @@ const GamePage = () => {
         {/* Game Header - Collapsible */}
         <div
           className={`transition-all duration-500 ease-in-out overflow-hidden ${
-            isHeaderCollapsed ? "max-h-0 opacity-0 mb-0" : "max-h-96 opacity-100 mb-6"
+            isHeaderCollapsed
+              ? "max-h-0 opacity-0 mb-0"
+              : "max-h-96 opacity-100 mb-6"
           }`}
         >
           <div className="bg-gradient-to-br from-slate-800/50 to-gray-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-gray-700/50">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-black text-white mb-1 tracking-tight">
-                  Among Us Coding Game
-                </h1>
+                <Link to="/">
+                  <h1 className="text-3xl font-black text-white mb-1 tracking-tight">
+                    Among Us Coding Game
+                  </h1>
+                </Link>
                 <div className="flex items-center gap-4 text-sm text-gray-400">
                   <div className="flex items-center gap-2">
                     <InfoOutlinedIcon sx={{ fontSize: 16 }} />
-                    <span>Game ID: <code className="text-gray-300 font-mono">{gameId}</code></span>
+                    <span>
+                      Game ID:{" "}
+                      <code className="text-gray-300 font-mono">{gameId}</code>
+                    </span>
                   </div>
                   <div className="h-4 w-px bg-gray-600"></div>
                   <div>
-                    Status: <span className="font-semibold text-white">{game.gameStatus}</span>
+                    Status:{" "}
+                    <span className="font-semibold text-white">
+                      {game.gameStatus}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -220,21 +230,29 @@ const GamePage = () => {
         {/* Game Status Bar - Collapsible */}
         <div
           className={`transition-all duration-500 ease-in-out overflow-hidden ${
-            isHeaderCollapsed ? "max-h-0 opacity-0 mb-0" : "max-h-96 opacity-100 mb-6"
+            isHeaderCollapsed
+              ? "max-h-0 opacity-0 mb-0"
+              : "max-h-96 opacity-100 mb-6"
           }`}
         >
           <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50">
             <div className="flex justify-between items-center flex-wrap gap-4">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
-                  <GroupsIcon sx={{ fontSize: 24, color: '#9ca3af' }} />
+                  <GroupsIcon sx={{ fontSize: 24, color: "#9ca3af" }} />
                   <span className="text-gray-300">
-                    <span className="font-bold text-white">{players.filter((p: any) => p.status === "alive").length}</span> alive
+                    <span className="font-bold text-white">
+                      {players.filter((p: any) => p.status === "alive").length}
+                    </span>{" "}
+                    alive
                   </span>
                 </div>
                 <div className="h-6 w-px bg-gray-700"></div>
                 <div className="text-gray-400">
-                  <span className="font-bold text-gray-300">{players.filter((p: any) => p.status === "dead").length}</span> eliminated
+                  <span className="font-bold text-gray-300">
+                    {players.filter((p: any) => p.status === "dead").length}
+                  </span>{" "}
+                  eliminated
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -264,26 +282,46 @@ const GamePage = () => {
               <div className="mt-6 pt-6 border-t border-gray-700/50">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <AssignmentIcon sx={{ fontSize: 22, color: '#9ca3af' }} />
+                    <AssignmentIcon sx={{ fontSize: 22, color: "#9ca3af" }} />
                     <span className="font-bold text-white">Your Tasks</span>
                   </div>
                   <div className="flex gap-6">
                     <div className="flex items-center gap-2">
-                      <CheckCircleIcon sx={{ fontSize: 18, color: '#10b981' }} />
+                      <CheckCircleIcon
+                        sx={{ fontSize: 18, color: "#10b981" }}
+                      />
                       <span className="text-green-400 font-semibold">
-                        {tasks.filter((task: any) => task.assignedTo === currentPlayer.playerId && task.status === "completed").length}
+                        {
+                          tasks.filter(
+                            (task: any) =>
+                              task.assignedTo === currentPlayer.playerId &&
+                              task.status === "completed"
+                          ).length
+                        }
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <CancelIcon sx={{ fontSize: 18, color: '#ef4444' }} />
+                      <CancelIcon sx={{ fontSize: 18, color: "#ef4444" }} />
                       <span className="text-red-400 font-semibold">
-                        {tasks.filter((task: any) => task.assignedTo === currentPlayer.playerId && task.status === "failed").length}
+                        {
+                          tasks.filter(
+                            (task: any) =>
+                              task.assignedTo === currentPlayer.playerId &&
+                              task.status === "failed"
+                          ).length
+                        }
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <PendingIcon sx={{ fontSize: 18, color: '#fbbf24' }} />
+                      <PendingIcon sx={{ fontSize: 18, color: "#fbbf24" }} />
                       <span className="text-yellow-400 font-semibold">
-                        {tasks.filter((task: any) => task.assignedTo === currentPlayer.playerId && task.status === "pending").length}
+                        {
+                          tasks.filter(
+                            (task: any) =>
+                              task.assignedTo === currentPlayer.playerId &&
+                              task.status === "pending"
+                          ).length
+                        }
                       </span>
                     </div>
                   </div>
@@ -316,7 +354,8 @@ const GamePage = () => {
                         <FiberManualRecordIcon
                           sx={{
                             fontSize: 12,
-                            color: player.status === "alive" ? "#10b981" : "#6b7280",
+                            color:
+                              player.status === "alive" ? "#10b981" : "#6b7280",
                           }}
                         />
                         {player.status === "alive" && (
@@ -328,7 +367,9 @@ const GamePage = () => {
                           </div>
                         )}
                       </div>
-                      <span className="font-medium text-white">{player.name}</span>
+                      <span className="font-medium text-white">
+                        {player.name}
+                      </span>
                     </div>
                     {player.playerId === playerId && (
                       <span className="text-xs bg-gray-700 border border-gray-600/50 text-white px-3 py-1 rounded-full font-semibold">
@@ -366,34 +407,38 @@ const GamePage = () => {
             {emergencyTask && (
               <div className="bg-gradient-to-br from-red-900/40 to-red-800/40 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border-2 border-red-500/50">
                 <div className="flex items-center gap-3 mb-4">
-                  <WarningAmberIcon sx={{ fontSize: 32, color: '#fbbf24' }} />
+                  <WarningAmberIcon sx={{ fontSize: 32, color: "#fbbf24" }} />
                   <h2 className="text-2xl font-black text-yellow-300">
                     EMERGENCY TASK
                   </h2>
                 </div>
-                <p className="mb-6 text-gray-200 text-lg">{emergencyTask.question}</p>
+                <p className="mb-6 text-gray-200 text-lg">
+                  {emergencyTask.question}
+                </p>
 
                 <div className="space-y-3 mb-6">
-                  {emergencyTask.options.map((option: string, index: number) => (
-                    <div
-                      key={index}
-                      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
-                        answer === option
-                          ? "bg-gray-700 border-gray-500 shadow-lg"
-                          : "bg-red-800/40 border-red-700/50 hover:bg-red-700/40 hover:border-red-600/50"
-                      }`}
-                      onClick={() => setAnswer(option)}
-                    >
-                      <span className="text-white font-medium">{option}</span>
-                    </div>
-                  ))}
+                  {emergencyTask.options.map(
+                    (option: string, index: number) => (
+                      <div
+                        key={index}
+                        className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
+                          answer === option
+                            ? "bg-gray-700 border-gray-500 shadow-lg"
+                            : "bg-red-800/40 border-red-700/50 hover:bg-red-700/40 hover:border-red-600/50"
+                        }`}
+                        onClick={() => setAnswer(option)}
+                      >
+                        <span className="text-white font-medium">{option}</span>
+                      </div>
+                    )
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2 text-sm">
                     {timeLeft !== null && timeLeft > 0 && (
                       <>
-                        <TimerIcon sx={{ fontSize: 18, color: '#fbbf24' }} />
+                        <TimerIcon sx={{ fontSize: 18, color: "#fbbf24" }} />
                         <span className="text-yellow-300 font-semibold">
                           Time left: {timeLeft} seconds
                         </span>
@@ -428,7 +473,8 @@ const GamePage = () => {
                   <h2 className="text-2xl font-bold text-white">Discussion</h2>
                 </div>
                 <p className="mb-6 text-gray-300">
-                  A meeting has been called. Discuss with other players and vote to eject the impostor.
+                  A meeting has been called. Discuss with other players and vote
+                  to eject the impostor.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -441,8 +487,12 @@ const GamePage = () => {
                         className="bg-gradient-to-br from-gray-800/80 to-slate-800/80 hover:from-gray-700/80 hover:to-slate-700/80 p-5 rounded-xl text-left transition-all duration-200 border border-gray-700/50 hover:border-gray-600/70 hover:scale-105"
                       >
                         <div className="flex items-center gap-3">
-                          <FiberManualRecordIcon sx={{ fontSize: 12, color: '#10b981' }} />
-                          <span className="font-bold text-white">{player.name}</span>
+                          <FiberManualRecordIcon
+                            sx={{ fontSize: 12, color: "#10b981" }}
+                          />
+                          <span className="font-bold text-white">
+                            {player.name}
+                          </span>
                         </div>
                         <div className="text-sm text-gray-400 mt-2">
                           Click to vote
@@ -454,7 +504,9 @@ const GamePage = () => {
                     className="bg-gradient-to-br from-gray-800/80 to-slate-800/80 hover:from-gray-700/80 hover:to-slate-700/80 p-5 rounded-xl text-left transition-all duration-200 border border-gray-700/50 hover:border-gray-600/70 hover:scale-105"
                   >
                     <div className="flex items-center gap-3">
-                      <FiberManualRecordIcon sx={{ fontSize: 12, color: '#6b7280' }} />
+                      <FiberManualRecordIcon
+                        sx={{ fontSize: 12, color: "#6b7280" }}
+                      />
                       <span className="font-bold text-white">Skip Vote</span>
                     </div>
                     <div className="text-sm text-gray-400 mt-2">
@@ -469,9 +521,11 @@ const GamePage = () => {
             {game.gameStatus === "ended" && (
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-8 text-center border border-gray-700/50">
                 <div className="flex justify-center mb-4">
-                  <EmojiEventsIcon sx={{ fontSize: 64, color: '#fbbf24' }} />
+                  <EmojiEventsIcon sx={{ fontSize: 64, color: "#fbbf24" }} />
                 </div>
-                <h2 className="text-3xl font-black mb-4 text-white">Game Over</h2>
+                <h2 className="text-3xl font-black mb-4 text-white">
+                  Game Over
+                </h2>
                 <p className="text-2xl mb-6 text-gray-300">
                   Winner:{" "}
                   <span className="font-black text-white">
@@ -498,7 +552,9 @@ const GamePage = () => {
             <h3 className="text-2xl font-bold mb-4 text-white">
               {selectedTask.description}
             </h3>
-            <p className="mb-6 text-gray-300 text-lg">{selectedTask.question}</p>
+            <p className="mb-6 text-gray-300 text-lg">
+              {selectedTask.question}
+            </p>
 
             {/* Show task result if available */}
             {taskResult && (

@@ -694,7 +694,7 @@ class GameController {
           createdAt: 1,
           startedAt: 1,
           endedAt: 1,
-          winner: 1
+          winner: 1,
         }
       ).sort({ createdAt: -1 });
 
@@ -707,7 +707,10 @@ class GameController {
     }
   };
 
-  public getAvailableGames = async (req: Request, res: Response): Promise<void> => {
+  public getAvailableGames = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
     try {
       // Fetch all games that are in "waiting" status (available to join)
       // Use explicit inclusion projection to avoid conflicts
@@ -716,7 +719,7 @@ class GameController {
         {
           gameId: 1,
           players: 1,
-          createdAt: 1
+          createdAt: 1,
         }
       ).sort({ createdAt: -1 });
 
@@ -2133,6 +2136,33 @@ class GameController {
       });
 
       res.status(200).json({ message: "Player kicked successfully", game });
+    } catch (error) {
+      res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  };
+
+  public deleteGame = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { gameId } = req.params;
+
+      // Find and delete the game
+      const game = await Game.findOneAndDelete({ gameId });
+      if (!game) {
+        res.status(404).json({ message: "Game not found" });
+        return;
+      }
+
+      // Notify all players in the game that the game has been deleted
+      const io = getIO();
+      io.to(gameId).emit("gameDeleted", {
+        gameId,
+        message: "Game has been deleted by admin",
+      });
+
+      res.status(200).json({ message: "Game deleted successfully" });
     } catch (error) {
       res.status(500).json({
         message:

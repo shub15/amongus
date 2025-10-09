@@ -17,6 +17,7 @@ export const setGameRoutes = (app: Application): void => {
 
   // Public routes
   router.post("/", validateGameCreation, gameController.createGame);
+  router.get("/available", gameController.getAvailableGames); // Add this line for quick join
 
   // Admin route to get all games
   router.get("/", authenticateToken, isAdmin, gameController.getAllGames);

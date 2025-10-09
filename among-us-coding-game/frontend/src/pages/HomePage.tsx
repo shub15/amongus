@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { gameAPI, playerAPI } from "../services/api";
 import PersonIcon from '@mui/icons-material/Person';
@@ -7,6 +7,9 @@ import LoginIcon from '@mui/icons-material/Login';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import CircularProgress from '@mui/material/CircularProgress';
+import FlashAutoIcon from '@mui/icons-material/FlashAuto';
+import CloseIcon from '@mui/icons-material/Close';
+import GroupsIcon from '@mui/icons-material/Groups';
 
 const HomePage = () => {
   const [playerName, setPlayerName] = useState("");
@@ -15,6 +18,8 @@ const HomePage = () => {
   const [gameId, setGameId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showAvailableGames, setShowAvailableGames] = useState(false);
+  const [availableGames, setAvailableGames] = useState([]);
   const navigate = useNavigate();
 
   const handleCreateGame = async () => {
@@ -74,6 +79,49 @@ const HomePage = () => {
 
       // Navigate to lobby
       navigate(`/lobby/${gameId}`);
+    } catch (err) {
+      setError("Failed to join game");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAvailableGames = async () => {
+    try {
+      setLoading(true);
+      const response = await gameAPI.getAvailableGames();
+      setAvailableGames(response.data);
+      setShowAvailableGames(true);
+      setError("");
+    } catch (err) {
+      setError("Failed to fetch available games");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const joinAvailableGame = async (selectedGameId) => {
+    if (!playerName.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      // Register the player and add them to the game at the same time
+      const playerResponse = await playerAPI.register(playerName, selectedGameId);
+      const { player, token } = playerResponse.data;
+
+      // Save token to localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("playerId", player.playerId);
+
+      // Navigate to lobby
+      navigate(`/lobby/${selectedGameId}`);
     } catch (err) {
       setError("Failed to join game");
       console.error(err);
@@ -161,6 +209,30 @@ const HomePage = () => {
                 )}
               </button>
 
+              {/* View Available Games Button */}
+              <button
+                onClick={fetchAvailableGames}
+                disabled={loading}
+                className="group relative w-full bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-black py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 border border-blue-600/50 overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-blue-900/50"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
+                  {loading ? (
+                    <>
+                      <CircularProgress size={24} sx={{ color: 'white' }} />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <GroupsIcon sx={{ fontSize: 28 }} />
+                      View Available Games
+                    </>
+                  )}
+                </span>
+                {!loading && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 translate-x-full group-hover:translate-x-full animate-shimmer"></div>
+                )}
+              </button>
+
               {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -219,6 +291,87 @@ const HomePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Available Games Modal */}
+        {showAvailableGames && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+            <div className="bg-gradient-to-br from-slate-800/80 to-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-700/50 w-full max-w-md max-h-[80vh] overflow-hidden">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold text-white">Available Games</h2>
+                  <button 
+                    onClick={() => setShowAvailableGames(false)}
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    <CloseIcon sx={{ fontSize: 32 }} />
+                  </button>
+                </div>
+
+                <div className="mb-4 text-gray-300">
+                  {availableGames.length === 0 ? (
+                    <p className="text-center py-4">No available games found. Create a new game!</p>
+                  ) : (
+                    <p className="text-center">Select a game to join</p>
+                  )}
+                </div>
+
+                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+                  {availableGames.map((game) => (
+                    <div 
+                      key={game.gameId}
+                      className="bg-gray-900/60 hover:bg-gray-800/60 border border-gray-700/50 rounded-xl p-4 transition-all duration-200 cursor-pointer group"
+                      onClick={() => joinAvailableGame(game.gameId)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="font-bold text-white text-lg">{game.gameId}</h3>
+                          <p className="text-gray-400 text-sm">
+                            {game.players.length} player{game.players.length !== 1 ? 's' : ''} waiting
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
+                            Join
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {game.players.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-700/50">
+                          <p className="text-gray-400 text-xs mb-1">Players:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {game.players.slice(0, 3).map((player) => (
+                              <span 
+                                key={player.playerId} 
+                                className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded-lg text-xs"
+                              >
+                                {player.name}
+                              </span>
+                            ))}
+                            {game.players.length > 3 && (
+                              <span className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded-lg text-xs">
+                                +{game.players.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowAvailableGames(false)}
+                    className="w-full bg-gray-700/60 hover:bg-gray-600/60 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 border border-gray-600/50"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-6 text-center text-gray-500 text-sm animate-fadeIn delay-600">

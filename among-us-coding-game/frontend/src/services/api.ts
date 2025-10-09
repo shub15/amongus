@@ -69,6 +69,8 @@ export const gameAPI = {
   createGame: (imposterCount: number = 1) =>
     api.post("/games", { imposterCount }),
 
+  getAvailableGames: () => api.get("/games/available"),
+
   getAllGames: () => api.get("/games"),
 
   getGame: (gameId: string) => {

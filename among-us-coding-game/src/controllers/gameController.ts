@@ -684,6 +684,7 @@ class GameController {
   public getAllGames = async (req: Request, res: Response): Promise<void> => {
     try {
       // Fetch all games with minimal data for the admin dashboard
+      // Use explicit inclusion projection to avoid conflicts
       const games = await Game.find(
         {},
         {
@@ -693,12 +694,33 @@ class GameController {
           createdAt: 1,
           startedAt: 1,
           endedAt: 1,
-          winner: 1,
-          __v: 0,
+          winner: 1
         }
       ).sort({ createdAt: -1 });
 
       res.status(200).json(games);
+    } catch (error) {
+      res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  };
+
+  public getAvailableGames = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Fetch all games that are in "waiting" status (available to join)
+      // Use explicit inclusion projection to avoid conflicts
+      const availableGames = await Game.find(
+        { gameStatus: "waiting" },
+        {
+          gameId: 1,
+          players: 1,
+          createdAt: 1
+        }
+      ).sort({ createdAt: -1 });
+
+      res.status(200).json(availableGames);
     } catch (error) {
       res.status(500).json({
         message:
